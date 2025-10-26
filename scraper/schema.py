@@ -1,0 +1,17 @@
+OUTPUT_COLUMNS = [
+    "owner_names",
+    "owner_type",
+    "matricule",
+    "tax_account_number",
+    "municipality",
+    "fiscal_years",
+    "nb_logements",
+    "assessed_terrain_current",
+    "assessed_batiment_current",
+    "assessed_total_current",
+    "assessed_total_previous",
+    "tax_distribution_json",
+    "last_fetched_at",
+    "source_url",
+    "status",
+]
