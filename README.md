@@ -55,6 +55,82 @@ python main.py --csv ./input/mtl_targets.csv --headful
 python main.py --sheet "MTL Plex Leads" --tab "20-40" --login
 ```
 
+## Configuring Git remotes for PR automation
+
+This repository does not ship with a Git remote preconfigured. Tools that
+attempt to open pull requests (including the provided `make_pr` helper)
+require an upstream remote/branch to compare against. If you see errors such
+as "no remote configured" or `fatal: No such remote: 'origin'`, add the
+appropriate remote before re-running the tool:
+
+```bash
+git remote add origin https://github.com/MugiZer/SELENIUM-AUTOMATION-FOR-OWNER-NAME.git
+git push -u origin work   # replace `work` with your current branch name
+```
+
+If you already have a different remote configured, you can update it instead:
+
+```bash
+git remote set-url origin https://github.com/MugiZer/SELENIUM-AUTOMATION-FOR-OWNER-NAME.git
+```
+
+After the first push, subsequent PR attempts will succeed because Git knows
+which remote branch should receive updates.
+
+### Manual pull request checklist
+
+If you prefer creating the pull request through the GitHub UI (or need to
+recover from a failed attempt), run the following commands locally. Replace
+`<branch>` with the branch that contains your changes — you can always check it
+with `git branch --show-current`.
+
+```bash
+# make sure all work is committed before switching
+git status
+
+# create or switch to the feature branch if necessary
+git checkout -b <branch>        # or: git checkout <branch> if it already exists
+
+# verify which branch you are on
+git branch --show-current
+
+# ensure the remote points to the public repository
+git remote -v
+git remote add origin https://github.com/MugiZer/SELENIUM-AUTOMATION-FOR-OWNER-NAME.git  # only if 'origin' is missing
+git remote set-url origin https://github.com/MugiZer/SELENIUM-AUTOMATION-FOR-OWNER-NAME.git  # only if it points elsewhere
+
+# publish the branch and establish the upstream tracking reference
+git push -u origin <branch>
+```
+
+After the push completes, open the repository page in your browser and click
+**Compare & pull request**. GitHub will pre-fill the base branch (`main`) and the
+compare branch (`<branch>`). Review the diff, add a title/description, and submit
+the PR. Future pushes to the same branch require only `git push` because the
+upstream tracking relationship is already in place.
+
+### Borough reference
+
+The dataset must include a column containing the authoritative borough name for each address. The column name is `NO_ARROND_ILE_CUM` and each cell must match one of the following values exactly:
+
+- Arrondissement de Villeray - Saint-Michel - Parc-Extension (Montréal)
+- (Westmount)
+- Arrondissement du Plateau-Mont-Royal (Montréal)
+- Arrondissement du Sud-Ouest (Montréal)
+- Arrondissement de Ville-Marie (Montréal)
+- Arrondissement de Côte-des-Neiges - Notre-Dame-de-Grâce (Montréal)
+- Saint Leonard
+- Arrondissement de Lachine (Montréal)
+- Arrondissement de Verdun (Montréal)
+- Arrondissement de Rosemont - La Petite-Patrie
+- Arrondissement de Pierrefonds - Roxboro (Montréal)
+- Arrondissement d'Outremont (Montréal)
+- Arrondissement de Saint-Laurent (Montréal)
+- Arrondissement d'Ahuntsic-Cartierville
+- Arrondissement de Mercier - Hochelaga-Maisonneuve (Montréal)
+
+During scraping the list view may contain duplicate street names. The scraper uses the normalised value from `NO_ARROND_ILE_CUM` to pick the matching borough entry; when the column is missing or blank the workflow gracefully falls back to address-only matching and logs the loss of precision so operators can correct the dataset.
+
 ### Output Columns
 
 Each processed row gains the following columns:
@@ -93,6 +169,8 @@ pytest
 - **Authentication failures**: ensure `MONTREAL_EMAIL` and `MONTREAL_PASSWORD` are set and valid.
 - **Sheets authentication**: confirm the spreadsheet is shared with the service account email and the JSON credentials are correct.
 - **429 or 5xx responses**: the scraper retries automatically with exponential backoff while keeping rate limits.
+- **Borough mismatches**: verify `NO_ARROND_ILE_CUM` values match the canonical list exactly; typos force the scraper to fall back to
+  address-only matching and return a `multiple_matches` or `not_found` status.
 
 ## Appendix: DevTools Data (verbatim)
 

@@ -17,7 +17,7 @@ from scraper.csvio import (
     read_csv,
     write_csv,
 )
-from scraper.schema import OUTPUT_COLUMNS
+from scraper.schema import BOROUGH_COLUMN, OUTPUT_COLUMNS
 from scraper.log import configure_logging
 from scraper.montreal_role import MontrealRoleScraper, parse_input_row
 from scraper.rate import RateLimiter
@@ -101,6 +101,12 @@ def process_csv(path: Path, scraper: MontrealRoleScraper, args):
     start_index = max(0, args.from_row - 2)
     processed = 0
     failures: List[Tuple[int, str]] = []
+    borough_present = BOROUGH_COLUMN in df.columns
+    if not borough_present:
+        logger.warning(
+            "Column '%s' not found in CSV; borough-aware selection will be skipped",
+            BOROUGH_COLUMN,
+        )
     for idx in range(start_index, len(df)):
         if args.max and processed >= args.max:
             break
@@ -109,6 +115,12 @@ def process_csv(path: Path, scraper: MontrealRoleScraper, args):
         query = parse_input_row(row)
         status = "error:missing_address"
         result: Dict[str, str] = {}
+        if query and not query.borough and borough_present:
+            logger.debug(
+                "Row %s missing borough value in '%s'; falling back to address-only matching",
+                idx + 1,
+                BOROUGH_COLUMN,
+            )
         if not query:
             logger.warning("Skipping row %s due to missing address fields", idx + 1)
         else:
@@ -118,6 +130,7 @@ def process_csv(path: Path, scraper: MontrealRoleScraper, args):
             for key in OUTPUT_COLUMNS:
                 df.at[idx, key] = result.get(key, "")
         else:
+            df.at[idx, "status"] = status
             failures.append((idx + 1, status))
         processed += 1
     if failures:
@@ -137,11 +150,18 @@ def process_sheet(args, scraper: MontrealRoleScraper) -> None:
     config = SheetConfig(spreadsheet=args.sheet, tab=args.tab, from_row=args.from_row)
     ws = open_sheet(client, config)
     header = ensure_columns(ws)
+    borough_present = BOROUGH_COLUMN in header
+    if not borough_present:
+        logger.warning(
+            "Column '%s' not found in Sheet header; borough-aware selection will be skipped",
+            BOROUGH_COLUMN,
+        )
 
     all_values = ws.get_all_values()
     start_row_idx = config.from_row - 1
     processed = 0
     success_rows: List[Tuple[int, Dict[str, str], Dict[str, str]]] = []
+    failure_statuses: List[Tuple[int, str]] = []
     for row_idx in range(start_row_idx, len(all_values)):
         if args.max and processed >= args.max:
             break
@@ -152,6 +172,12 @@ def process_sheet(args, scraper: MontrealRoleScraper) -> None:
         query = parse_input_row(row_dict)
         status = "error:missing_address"
         result: Dict[str, str] = {}
+        if query and not query.borough and borough_present:
+            logger.debug(
+                "Row %s missing borough value in '%s'; using address-only matching",
+                row_number,
+                BOROUGH_COLUMN,
+            )
         if not query:
             logger.warning("Skipping row %s due to missing address fields", row_number)
         else:
@@ -170,12 +196,15 @@ def process_sheet(args, scraper: MontrealRoleScraper) -> None:
             logger.warning(
                 "Row %s not updated due to status '%s'", row_number, status
             )
+            failure_statuses.append((row_number, status))
             if success_rows:
                 _commit_batch(ws, success_rows, header)
                 success_rows = []
         processed += 1
     if success_rows:
         _commit_batch(ws, success_rows, header)
+    if failure_statuses:
+        _apply_status_updates(ws, header, failure_statuses)
 
 
 def _commit_batch(
@@ -270,6 +299,33 @@ def _commit_batch(
             current_rows = [(row_number, original, updated)]
         previous_row = row_number
     _dispatch(current_start, current_rows)
+
+
+def _apply_status_updates(ws, header: List[str], updates: List[Tuple[int, str]]) -> None:
+    if not updates:
+        return
+    try:
+        status_col_index = header.index("status") + 1
+    except ValueError:
+        logger.error("Status column missing from header; cannot record failures")
+        return
+    try:
+        from gspread.utils import rowcol_to_a1
+    except ImportError:
+        logger.error("gspread is required to update status cells")
+        return
+
+    for row_number, status in updates:
+        cell = rowcol_to_a1(row_number, status_col_index)
+        try:
+            ws.update(cell, [[status]])
+        except Exception as exc:
+            logger.error(
+                "Failed to update status for row %s at %s: %s",
+                row_number,
+                cell,
+                exc,
+            )
 
 
 if __name__ == "__main__":
