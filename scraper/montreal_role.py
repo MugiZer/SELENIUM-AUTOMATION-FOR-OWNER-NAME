@@ -6,7 +6,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from playwright.sync_api import Page, TimeoutError
 
@@ -25,6 +25,7 @@ class AddressQuery:
     civic_number: str
     street_name: str
     raw_address: str
+    borough: Optional[str] = None
 
     @property
     def cache_key(self) -> str:
@@ -318,20 +319,31 @@ def _candidate_next_data_urls(next_data: Dict[str, Any]) -> List[str]:
 
 def parse_input_row(row: Dict[str, str]) -> Optional[AddressQuery]:
     civic_number = clean_number(row.get("civicNumber") or row.get("civic_number"))
-    street_name = (row.get("streetName") or row.get("street_name") or "").strip()
-    raw_address = row.get("address") or row.get("Adresse") or ""
+    street_name = row.get("streetName") or row.get("street_name") or ""
+    raw_address = row.get("address") or row.get("raw_address") or ""
+    borough = row.get("NO_ARROND_ILE_CUM") or row.get("borough") or ""
+    
     if not civic_number and raw_address:
         match = re.match(r"(\d+[a-zA-Z]?)\s+(.*)", raw_address)
         if match:
             civic_number = match.group(1)
             street_name = street_name or match.group(2)
+            
     street_name = street_name.strip()
     if not civic_number or not street_name:
         return None
-    return AddressQuery(civic_number=civic_number, street_name=street_name, raw_address=raw_address or f"{civic_number} {street_name}")
+        
+    return AddressQuery(
+        civic_number=civic_number,
+        street_name=street_name,
+        raw_address=raw_address or f"{civic_number} {street_name}",
+        borough=borough.strip() or None
+    )
 
 
-def clean_number(value: Optional[str]) -> str:
-    if not value:
+def clean_number(value: Union[str, int, None]) -> str:
+    if value is None:
         return ""
+    if not isinstance(value, str):
+        value = str(value)
     return re.sub(r"[^0-9a-zA-Z]", "", value)

@@ -2,7 +2,7 @@ name: CodeQL
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "windsurf_branch"]
   pull_request:
     branches: ["main"]
   schedule:
@@ -23,28 +23,28 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Detect Python sources
-        id: detect_python
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
         run: |
-          files="$(git ls-files '*.py')"
-          if [ -n "$files" ]; then
-            echo "has_python=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "No Python sources detected; skipping CodeQL." >> "$GITHUB_STEP_SUMMARY"
-            echo "has_python=false" >> "$GITHUB_OUTPUT"
-          fi
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
       - name: Initialize CodeQL
-        if: steps.detect_python.outputs.has_python == 'true'
         uses: github/codeql-action/init@v3
         with:
           languages: python
           config-file: ./.github/codeql/codeql-config.yml
+          debug: true
 
-      - name: Autobuild
-        if: steps.detect_python.outputs.has_python == 'true'
-        uses: github/codeql-action/autobuild@v3
+      - name: No-op build for single Python file
+        run: true
 
       - name: Perform CodeQL Analysis
-        if: steps.detect_python.outputs.has_python == 'true'
         uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:python"

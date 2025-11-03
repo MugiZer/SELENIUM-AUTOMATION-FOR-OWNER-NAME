@@ -1,0 +1,2 @@
+2025-11-02 18:20:13,825 | INFO | scraper.montreal_role | Processing 1234 Rue Saint-Denis
+2025-11-02 18:20:41,540 | WARNING | __main__ | Row 1 not updated due to status 'not_found'

@@ -1,6 +1,5 @@
 name: python-codeql
 paths:
-  - main.py
-  - scraper
-  - selectolax
-  - tests
+  - scraper/
+  - tests/
+  - selectolax/

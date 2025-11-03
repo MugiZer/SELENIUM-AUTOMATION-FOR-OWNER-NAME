@@ -1,0 +1,4 @@
+civic_number,street_name,NO_ARROND_ILE_CUM,owner_names,owner_type,matricule,tax_account_number,municipality,fiscal_years,nb_logements,assessed_terrain_current,assessed_batiment_current,assessed_total_current,assessed_total_previous,tax_distribution_json,last_fetched_at,source_url,status
+1234,Rue Saint-Denis,Ville-Marie,,,,,,,,,,,,,,,not_found
+5678,Boulevard Saint-Laurent,Le Plateau-Mont-Royal,,,,,,,,,,,,,,,
+9101,Avenue du Parc,Le Plateau-Mont-Royal,,,,,,,,,,,,,,,
