@@ -38,14 +38,20 @@ jobs:
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
+    - name: Skip autobuild
+      run: echo "Skipping autobuild for Python"
+      if: matrix.language == 'python'
+
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v3
       with:
         languages: ${{ matrix.language }}
         queries: security-and-quality
+        disable-autobuild: true
 
     - name: No-op build for single Python file
       run: true
+      if: matrix.language == 'python'
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
