@@ -4,7 +4,7 @@ from typing import Dict
 
 import pandas as pd
 
-from .schema import OUTPUT_COLUMNS
+from .schema import OUTPUT_COLUMNS, attach_normalized_borough
 
 
 def read_csv(path: Path) -> pd.DataFrame:
@@ -40,4 +40,4 @@ def backup_original(path: Path, df: pd.DataFrame) -> Path:
 def ensure_output_columns(row: Dict[str, str]) -> Dict[str, str]:
     for col in OUTPUT_COLUMNS:
         row.setdefault(col, "")
-    return row
+    return attach_normalized_borough(row)

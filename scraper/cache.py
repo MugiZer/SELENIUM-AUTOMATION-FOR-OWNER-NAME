@@ -5,6 +5,8 @@ from typing import Any, Dict, Optional
 
 
 class Cache:
+    """SQLite-backed cache for previously scraped payloads."""
+
     def __init__(self, path: Path) -> None:
         self.path = path
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -19,6 +21,12 @@ class Cache:
             """
         )
         self._conn.commit()
+
+    def __enter__(self) -> "Cache":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:  # type: ignore[override]
+        self.close()
 
     def get(self, key: str) -> Optional[Dict[str, Any]]:
         cur = self._conn.execute("SELECT data FROM cache WHERE key = ?", (key,))
