@@ -1,5 +1,9 @@
-name: python-codeql
+﻿name: python-codeql
+
 paths:
+
   - main.py
+
   - scraper
+
   - tests
