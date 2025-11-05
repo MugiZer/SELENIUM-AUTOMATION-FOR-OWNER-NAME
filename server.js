@@ -1,11 +1,20 @@
-require('dotenv').config();
-const express = require('express');
-const session = require('express-session');
-const passport = require('passport');
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const path = require('path');
-const cors = require('cors');
-const { validateEnv } = require('./config');
+import dotenv from 'dotenv';
+import express from 'express';
+import session from 'express-session';
+import passport from 'passport';
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import cors from 'cors';
+import { validateEnv } from './config.js';
+
+// Configure dotenv
+dotenv.config();
+
+// Get directory name in ES module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 const app = express();
 
 // Validate environment variables
@@ -113,7 +122,13 @@ app.get('/api/user', (req, res) => {
 });
 
 // Serve static files from the UI build
-app.use(express.static(path.join(__dirname, 'ui/dist')));
+const staticPath = join(__dirname, 'ui/dist');
+app.use(express.static(staticPath));
+
+// Serve index.html for all non-API routes
+app.get('*', (req, res) => {
+  res.sendFile(join(staticPath, 'index.html'));
+});
 
 // API status endpoint
 app.get('/api/status', (req, res) => {

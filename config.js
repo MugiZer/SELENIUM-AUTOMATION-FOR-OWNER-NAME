@@ -1,4 +1,9 @@
-require('dotenv').config();
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// Configure dotenv
+dotenv.config();
 
 const requiredEnvVars = [
   'NODE_ENV',
@@ -23,4 +28,4 @@ function validateEnv() {
   return true;
 }
 
-module.exports = { validateEnv };
+export { validateEnv };
