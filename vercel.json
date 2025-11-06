@@ -3,23 +3,51 @@
   "builds": [
     {
       "src": "server.js",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": [
+          "config.js",
+          "node_modules/**/*",
+          "ui/dist/**/*"
+        ]
+      }
     },
     {
       "src": "ui/package.json",
       "use": "@vercel/static-build",
-      "config": { "distDir": "dist" }
+      "config": {
+        "distDir": "dist",
+        "installCommand": "cd ui && npm install",
+        "buildCommand": "cd ui && npm run build"
+      }
     }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "/server.js" },
-    { "src": "/auth/(.*)", "dest": "/server.js" },
-    { "handle": "filesystem" },
-    { "src": "/.*", "dest": "/ui/dist/index.html" }
+    {
+      "src": "/api/(.*)",
+      "dest": "server.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "ui/dist/$1"
+    },
+    {
+      "src": "/auth/(.*)",
+      "dest": "server.js"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/.*",
+      "dest": "ui/dist/index.html"
+    }
   ],
   "env": {
     "NODE_ENV": "production"
   },
-  "buildCommand": "cd ui && npm install && npm run build",
-  "outputDirectory": "ui/dist"
+  "buildCommand": "npm run build",
+  "outputDirectory": "ui/dist",
+  "regions": ["iad1"],
+  "framework": null
 }
