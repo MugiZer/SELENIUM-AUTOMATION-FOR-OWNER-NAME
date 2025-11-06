@@ -7,7 +7,7 @@
   "scripts": {
     "prestart": "node -r ./config.js validateEnv",
     "start": "node server.js",
-    "setup": "tsx scripts/setup.ts",
+    "setup": "node setup.js",
     "dev": "concurrently \"npm run ui:dev\" \"nodemon -r ./config.js server.js\"",
     "ui:install": "cd ui && npm install",
     "ui:build": "cd ui && npm run build",
