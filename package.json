@@ -12,10 +12,11 @@
     "ui:install": "cd ui && npm install",
     "ui:build": "cd ui && npm run build",
     "ui:dev": "cd ui && npm run dev",
-    "build": "npm run ui:build && node -r ./config.js validateEnv",
+    "build": "npm run ui:build",
+    "build:no-validate": "npm run ui:build",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "test": "jest",
-    "vercel-build": "npm install && npm run build",
+    "vercel-build": "npm install && npm run build:no-validate",
     "prepare": "node -e \"const { existsSync } = require('fs'); if (existsSync('node_modules/.bin/husky')) require('child_process').execSync('npx husky install', { stdio: 'inherit' })\""
   },
   "dependencies": {

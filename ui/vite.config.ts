@@ -21,10 +21,19 @@ export default defineConfig(({ mode }) => {
     }
   });
 
+  // Filter and prepare environment variables
+  const envVars = Object.keys(process.env).reduce((acc, key) => {
+    if (key.startsWith('VITE_')) {
+      acc[`import.meta.env.${key}`] = JSON.stringify(process.env[key]);
+    }
+    return acc;
+  }, {} as Record<string, string>);
+
   return {
     define: {
-      ...processEnv,
+      ...envVars,
       'process.env.NODE_ENV': JSON.stringify(mode),
+      'import.meta.env.NODE_ENV': JSON.stringify(mode),
     },
     base: '/',
     server: {
@@ -82,8 +91,6 @@ export default defineConfig(({ mode }) => {
       // Ensure consistent module resolution
       preserveSymlinks: true,
     },
-    define: {
-      'process.env': { ...env, NODE_ENV: mode }
-    }
+    // Environment variables are already defined above
   };
 });

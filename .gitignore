@@ -70,3 +70,4 @@ ENV/
 *.log
 geckodriver.log
 chromedriver.log
+.vercel
