@@ -12,7 +12,7 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Generator
+from typing import Any, Dict, List, Optional, Tuple, Generator, Union
 
 from dotenv import load_dotenv
 
@@ -186,45 +186,84 @@ def process_csv(
     chunk_size: int = 50,
     max_rows: Optional[int] = None,
     start_row: int = 0
-) -> None:
+) -> Dict[str, Any]:
     """
     Process a CSV file containing property addresses and save the results.
-
-def process_csv(args, scraper: MontrealRoleScraper) -> None:
-    """Process addresses from a CSV file and write results to a new CSV."""
-    if not os.path.exists(args.input_file):
-        raise SystemExit(f"Input file not found: {args.input_file}")
     
-    from scraper.csv_handler import CSVHandler
+    Args:
+        input_path: Path to the input CSV file
+        output_path: Path to save the output CSV file
+        scraper: Initialized MontrealRoleScraper instance
+        chunk_size: Number of rows to process in each chunk
+        max_rows: Maximum number of rows to process (None for no limit)
+        start_row: Row number to start processing from (0-based)
+        
+    Returns:
+        Dict containing processing statistics and output path:
+        {
+            'total_processed': int,
+            'success_count': int,
+            'failure_count': int,
+            'output_path': str
+        }
+    """
+    import pandas as pd
+    from tqdm import tqdm
     
-    # Initialize CSV handler
-    csv_handler = CSVHandler(
-        input_path=args.input_file,
-        output_path=args.output_file
+    # Read input CSV
+    logger.info(f"Reading input file: {input_path}")
+    
+    # Check if input file exists
+    if not input_path.exists():
+        raise FileNotFoundError(f"Input file not found: {input_path}")
+    
+    # Read CSV in chunks for memory efficiency
+    chunks = pd.read_csv(
+        input_path,
+        chunksize=chunk_size,
+        dtype=str,
+        skiprows=range(1, start_row + 1)  # Skip header + start_row rows
     )
+    
+    # Prepare output file
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     
     # Process in chunks to handle large files
     total_processed = 0
     success_count = 0
     failure_count = 0
     
-    for header, chunk, start_row, end_row in csv_handler.process_in_chunks(chunk_size=20):
-        logger.info(f"Processing rows {start_row} to {end_row}...")
+    # Get the header from the first chunk
+    first_chunk = True
+    
+    for chunk in chunks:
+        chunk_processed = 0
+        chunk_success = 0
+        chunk_failure = 0
         
+        # Process each row in the chunk
         updated_chunk = []
-        for row in chunk:
-            # Ensure all output columns exist
-            row = csv_handler.ensure_columns(row)
+        
+        for _, row in chunk.iterrows():
+            # Check max rows limit
+            if max_rows is not None and total_processed >= max_rows:
+                break
+                
+            # Ensure all required columns exist
+            row_dict = row.to_dict()
+            for col in REQUIRED_INPUT_COLUMNS:
+                if col not in row_dict:
+                    row_dict[col] = ""
             
             # Parse input row
-            query = parse_input_row(row)
+            query = parse_input_row(row_dict)
             status = "error:missing_address"
             result: Dict[str, str] = {}
             
             if query:
                 # Check for borough column if present
-                if query.borough is None and BOROUGH_COLUMN in row and row[BOROUGH_COLUMN]:
-                    query.borough = row[BOROUGH_COLUMN].strip()
+                if query.borough is None and BOROUGH_COLUMN in row_dict and row_dict[BOROUGH_COLUMN]:
+                    query.borough = str(row_dict[BOROUGH_COLUMN]).strip()
                     logger.debug(f"Using borough from CSV: {query.borough}")
                 
                 # Fetch property data
@@ -232,54 +271,78 @@ def process_csv(args, scraper: MontrealRoleScraper) -> None:
                     result = scraper.fetch(query) or {}
                     status = result.get("status", "error:unknown")
                 except Exception as e:
-                    logger.error(f"Error processing row {start_row + len(updated_chunk)}: {str(e)}")
-                    status = "error:exception"
+                    logger.error(f"Error processing row {total_processed + 1}: {str(e)}")
+                    status = f"error:exception:{str(e)[:100]}"
             
             # Update row with results
+            result_row = row_dict.copy()
             if status == "ok":
                 for key in OUTPUT_COLUMNS:
-                    row[key] = result.get(key, "")
+                    result_row[key] = result.get(key, "")
+                result_row["status"] = "success"
                 success_count += 1
+                chunk_success += 1
             else:
-                row["status"] = status
+                result_row["status"] = status
                 failure_count += 1
-                logger.warning(f"Row {start_row + len(updated_chunk)} failed with status: {status}")
+                chunk_failure += 1
+                logger.warning(f"Row {total_processed + 1} failed with status: {status}")
             
-            updated_chunk.append(row)
+            # Add timestamp
+            result_row["last_updated"] = datetime.now().isoformat()
+            updated_chunk.append(result_row)
             total_processed += 1
-            
-            # Check max rows limit
-            if args.max and total_processed >= args.max:
-                break
+            chunk_processed += 1
         
         # Write the processed chunk to the output file
         try:
-            # For the first chunk, write header, otherwise append
-            mode = 'w' if start_row == 1 else 'a'
-            with open(csv_handler.output_path, mode, newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=header + [col for col in OUTPUT_COLUMNS if col not in header])
-                if mode == 'w':
-                    writer.writeheader()
-                writer.writerows(updated_chunk)
+            # Convert to DataFrame for easier CSV writing
+            result_df = pd.DataFrame(updated_chunk)
             
-            logger.info(f"Successfully processed {len(updated_chunk)} rows ({success_count} success, {failure_count} failed)")
+            # For the first chunk, write header, otherwise append
+            mode = 'w' if first_chunk else 'a'
+            header = first_chunk  # Write header only for first chunk
+            
+            result_df.to_csv(
+                output_path,
+                mode=mode,
+                header=header,
+                index=False,
+                encoding='utf-8'
+            )
+            
+            logger.info(f"Processed {chunk_processed} rows in this chunk "
+                       f"({chunk_success} success, {chunk_failure} failed)")
+            
+            # Save a checkpoint
+            checkpoint_path = output_path.parent / f"{output_path.stem}_checkpoint_{total_processed}{output_path.suffix}"
+            result_df.to_csv(checkpoint_path, index=False)
+            logger.debug(f"Saved checkpoint to {checkpoint_path}")
+            
+            first_chunk = False
+            
         except Exception as e:
             logger.error(f"Error writing to output file: {str(e)}")
             # Save failed chunk to a backup file
-            backup_path = f"{csv_handler.output_path}.failed_{int(time.time())}.csv"
-            with open(backup_path, 'w', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=header + [col for col in OUTPUT_COLUMNS if col not in header])
-                writer.writeheader()
-                writer.writerows(updated_chunk)
+            backup_path = output_path.parent / f"{output_path.stem}_failed_{int(time.time())}.csv"
+            pd.DataFrame(updated_chunk).to_csv(backup_path, index=False)
             logger.error(f"Saved failed chunk to {backup_path}")
         
         # Check max rows limit again in case we're in the middle of a chunk
-        if args.max and total_processed >= args.max:
-            logger.info(f"Reached maximum number of rows to process ({args.max})")
+        if max_rows is not None and total_processed >= max_rows:
+            logger.info(f"Reached maximum number of rows to process ({max_rows})")
             break
     
-                exc,
-            )
+    logger.info(f"Processing complete. Total: {total_processed} rows "
+               f"({success_count} success, {failure_count} failed)")
+    
+    # Save final output with all processed data
+    return {
+        "total_processed": total_processed,
+        "success_count": success_count,
+        "failure_count": failure_count,
+        "output_path": str(output_path)
+    }
 
 
 if __name__ == "__main__":
