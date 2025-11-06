@@ -35,16 +35,41 @@ logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Montreal role scraper")
-    parser.add_argument("--csv", type=str, help="Path to CSV file")
-    parser.add_argument("--sheet", type=str, help="Google Sheet name")
-    parser.add_argument("--tab", type=str, help="Google Sheet tab name")
-    parser.add_argument("--from-row", type=int, default=2, help="Starting row (1-indexed)")
-    parser.add_argument("--max", type=int, default=0, help="Maximum rows to process")
-    parser.add_argument("--delay-min", type=float, default=1.5)
-    parser.add_argument("--delay-max", type=float, default=3.0)
-    parser.add_argument("--headful", action="store_true", help="Run browser headful")
-    parser.add_argument("--login", action="store_true", help="Use login flow")
+    parser = argparse.ArgumentParser(description="Scrape Montreal property data from CSV")
+    
+    # Input/Output file arguments
+    parser.add_argument(
+        "input_file",
+        nargs="?",
+        help="Input CSV file containing addresses to process"
+    )
+    parser.add_argument(
+        "--output-file",
+        "-o",
+        help="Output CSV file path (default: <input_file>_output.csv)"
+    )
+    
+    # Processing options
+    parser.add_argument(
+        "--max",
+        type=int,
+        help="Maximum number of addresses to process"
+    )
+    
+    # Browser options
+    parser.add_argument(
+        "--headless",
+        action="store_true",
+        help="Run browser in headless mode"
+    )
+    
+    # Debugging
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug logging"
+    )
+    
     return parser.parse_args()
 
 
@@ -142,69 +167,97 @@ def process_csv(path: Path, scraper: MontrealRoleScraper, args):
     export_snapshot(df, Path("exports"))
 
 
-def process_sheet(args, scraper: MontrealRoleScraper) -> None:
-    service_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON", "")
-    if not service_json:
-        raise SystemExit("GOOGLE_SERVICE_ACCOUNT_JSON must be set for Sheets mode")
-    client = get_client(service_json)
-    config = SheetConfig(spreadsheet=args.sheet, tab=args.tab, from_row=args.from_row)
-    ws = open_sheet(client, config)
-    header = ensure_columns(ws)
-    borough_present = BOROUGH_COLUMN in header
-    if not borough_present:
-        logger.warning(
-            "Column '%s' not found in Sheet header; borough-aware selection will be skipped",
-            BOROUGH_COLUMN,
-        )
-
-    all_values = ws.get_all_values()
-    start_row_idx = config.from_row - 1
-    processed = 0
-    success_rows: List[Tuple[int, Dict[str, str], Dict[str, str]]] = []
-    failure_statuses: List[Tuple[int, str]] = []
-    for row_idx in range(start_row_idx, len(all_values)):
-        if args.max and processed >= args.max:
+def process_csv(args, scraper: MontrealRoleScraper) -> None:
+    """Process addresses from a CSV file and write results to a new CSV."""
+    if not os.path.exists(args.input_file):
+        raise SystemExit(f"Input file not found: {args.input_file}")
+    
+    from scraper.csv_handler import CSVHandler
+    
+    # Initialize CSV handler
+    csv_handler = CSVHandler(
+        input_path=args.input_file,
+        output_path=args.output_file
+    )
+    
+    # Process in chunks to handle large files
+    total_processed = 0
+    success_count = 0
+    failure_count = 0
+    
+    for header, chunk, start_row, end_row in csv_handler.process_in_chunks(chunk_size=20):
+        logger.info(f"Processing rows {start_row} to {end_row}...")
+        
+        updated_chunk = []
+        for row in chunk:
+            # Ensure all output columns exist
+            row = csv_handler.ensure_columns(row)
+            
+            # Parse input row
+            query = parse_input_row(row)
+            status = "error:missing_address"
+            result: Dict[str, str] = {}
+            
+            if query:
+                # Check for borough column if present
+                if query.borough is None and BOROUGH_COLUMN in row and row[BOROUGH_COLUMN]:
+                    query.borough = row[BOROUGH_COLUMN].strip()
+                    logger.debug(f"Using borough from CSV: {query.borough}")
+                
+                # Fetch property data
+                try:
+                    result = scraper.fetch(query) or {}
+                    status = result.get("status", "error:unknown")
+                except Exception as e:
+                    logger.error(f"Error processing row {start_row + len(updated_chunk)}: {str(e)}")
+                    status = "error:exception"
+            
+            # Update row with results
+            if status == "ok":
+                for key in OUTPUT_COLUMNS:
+                    row[key] = result.get(key, "")
+                success_count += 1
+            else:
+                row["status"] = status
+                failure_count += 1
+                logger.warning(f"Row {start_row + len(updated_chunk)} failed with status: {status}")
+            
+            updated_chunk.append(row)
+            total_processed += 1
+            
+            # Check max rows limit
+            if args.max and total_processed >= args.max:
+                break
+        
+        # Write the processed chunk to the output file
+        try:
+            # For the first chunk, write header, otherwise append
+            mode = 'w' if start_row == 1 else 'a'
+            with open(csv_handler.output_path, mode, newline='', encoding='utf-8') as f:
+                writer = csv.DictWriter(f, fieldnames=header + [col for col in OUTPUT_COLUMNS if col not in header])
+                if mode == 'w':
+                    writer.writeheader()
+                writer.writerows(updated_chunk)
+            
+            logger.info(f"Successfully processed {len(updated_chunk)} rows ({success_count} success, {failure_count} failed)")
+        except Exception as e:
+            logger.error(f"Error writing to output file: {str(e)}")
+            # Save failed chunk to a backup file
+            backup_path = f"{csv_handler.output_path}.failed_{int(time.time())}.csv"
+            with open(backup_path, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.DictWriter(f, fieldnames=header + [col for col in OUTPUT_COLUMNS if col not in header])
+                writer.writeheader()
+                writer.writerows(updated_chunk)
+            logger.error(f"Saved failed chunk to {backup_path}")
+        
+        # Check max rows limit again in case we're in the middle of a chunk
+        if args.max and total_processed >= args.max:
+            logger.info(f"Reached maximum number of rows to process ({args.max})")
             break
-        row_number = row_idx + 1
-        row_values = all_values[row_idx]
-        row_dict = {header[i]: row_values[i] if i < len(row_values) else "" for i in range(len(header))}
-        row_dict = ensure_output_columns(row_dict)
-        query = parse_input_row(row_dict)
-        status = "error:missing_address"
-        result: Dict[str, str] = {}
-        if query and not query.borough and borough_present:
-            logger.debug(
-                "Row %s missing borough value in '%s'; using address-only matching",
-                row_number,
-                BOROUGH_COLUMN,
-            )
-        if not query:
-            logger.warning("Skipping row %s due to missing address fields", row_number)
-        else:
-            result = scraper.fetch(query) or {}
-            status = result.get("status", "error:unknown")
-        if status == "ok":
-            original_row = row_dict.copy()
-            updated_row = row_dict.copy()
-            for key in OUTPUT_COLUMNS:
-                updated_row[key] = result.get(key, "")
-            success_rows.append((row_number, original_row, updated_row))
-            if len(success_rows) >= 20:
-                _commit_batch(ws, success_rows, header)
-                success_rows = []
-        else:
-            logger.warning(
-                "Row %s not updated due to status '%s'", row_number, status
-            )
-            failure_statuses.append((row_number, status))
-            if success_rows:
-                _commit_batch(ws, success_rows, header)
-                success_rows = []
-        processed += 1
-    if success_rows:
-        _commit_batch(ws, success_rows, header)
-    if failure_statuses:
-        _apply_status_updates(ws, header, failure_statuses)
+    
+    logger.info(f"Processing complete. Total: {total_processed}, Success: {success_count}, Failed: {failure_count}")
+    logger.info(f"Output saved to: {csv_handler.output_path}")
+    return csv_handler.output_path
 
 
 def _commit_batch(
