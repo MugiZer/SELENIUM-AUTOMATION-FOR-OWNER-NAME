@@ -25,12 +25,16 @@ export default defineConfig(({ mode }) => {
     define: {
       ...processEnv,
       'process.env.NODE_ENV': JSON.stringify(mode),
+      'process.env': { ...env, NODE_ENV: mode }
     },
     base: '/',
     server: {
       host: "::",
       port: 8080,
       strictPort: true,
+      fs: {
+        strict: false
+      }
     },
     preview: {
       port: 8080,
@@ -61,9 +65,10 @@ export default defineConfig(({ mode }) => {
         { find: '@lib', replacement: path.resolve(__dirname, 'src/lib') },
         { find: '@pages', replacement: path.resolve(__dirname, 'src/pages') },
       ],
+      extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json', '.vue']
     },
-    define: {
-      'process.env': { ...env, NODE_ENV: mode }
+    optimizeDeps: {
+      include: ['@/lib/utils']
     }
   };
 });
