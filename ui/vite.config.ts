@@ -55,16 +55,32 @@ export default defineConfig(({ mode }) => {
       mode === "development" && componentTagger()
     ].filter(Boolean) as any[],
     resolve: {
+      // Ensure consistent file extension resolution
       extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
+      // Configure path aliases
       alias: [
-        { find: '@', replacement: path.resolve(__dirname, 'src') },
-        { find: '@components', replacement: path.resolve(__dirname, 'src/components') },
-        { find: '@lib', replacement: path.resolve(__dirname, 'src/lib') },
-        { find: '@pages', replacement: path.resolve(__dirname, 'src/pages') },
+        { 
+          find: '@', 
+          replacement: path.resolve(__dirname, 'src') 
+        },
+        { 
+          find: '@components', 
+          replacement: path.resolve(__dirname, 'src/components') 
+        },
+        { 
+          find: '@lib', 
+          replacement: path.resolve(__dirname, 'src/lib') 
+        },
+        { 
+          find: '@pages', 
+          replacement: path.resolve(__dirname, 'src/pages') 
+        },
       ],
       // Ensure Node.js polyfills are available
       aliasFields: ['browser'],
       mainFields: ['browser', 'module', 'jsnext:main', 'jsnext'],
+      // Ensure consistent module resolution
+      preserveSymlinks: true,
     },
     define: {
       'process.env': { ...env, NODE_ENV: mode }
