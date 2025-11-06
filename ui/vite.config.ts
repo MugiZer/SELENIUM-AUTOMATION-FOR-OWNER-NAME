@@ -11,10 +11,21 @@ const __dirname = path.dirname(__filename);
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current directory.
-  // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
   const env = loadEnv(mode, process.cwd(), '');
 
+  // Filter out all environment variables except those prefixed with VITE_
+  const processEnv: Record<string, string> = {};
+  Object.entries(env).forEach(([key, value]) => {
+    if (key.startsWith('VITE_')) {
+      processEnv[`process.env.${key}`] = JSON.stringify(value);
+    }
+  });
+
   return {
+    define: {
+      ...processEnv,
+      'process.env.NODE_ENV': JSON.stringify(mode),
+    },
     base: '/',
     server: {
       host: "::",
@@ -42,7 +53,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       mode === "development" && componentTagger()
-    ].filter(Boolean),
+    ].filter(Boolean) as any[],
     resolve: {
       alias: [
         { find: '@', replacement: path.resolve(__dirname, 'src') },
