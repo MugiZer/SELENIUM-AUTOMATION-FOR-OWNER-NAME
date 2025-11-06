@@ -1,59 +1,82 @@
+#!/usr/bin/env python3
+"""
+Montreal Property Data Scraper
+
+This script scrapes property assessment data from the Montreal property assessment website
+and saves the results to a CSV file.
+"""
+
 import argparse
-import json
+import csv
 import logging
-import os
-import time
+import sys
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple, Generator
 
 from dotenv import load_dotenv
 
+# Local imports
 from scraper.browser import launch_browser, new_page
 from scraper.cache import Cache
-from scraper.csvio import (
-    backup_original,
-    ensure_output_columns,
-    export_snapshot,
-    read_csv,
-    write_csv,
-)
-from scraper.schema import BOROUGH_COLUMN, OUTPUT_COLUMNS
-from scraper.log import configure_logging
 from scraper.montreal_role import MontrealRoleScraper, parse_input_row
 from scraper.rate import RateLimiter
-from scraper.sheets import (
-    SheetConfig,
-    batch_update,
-    ensure_columns,
-    get_client,
-    open_sheet,
-    range_for_rows,
+from scraper.log import configure_logging
+
+# Configuration
+from config import (
+    NODE_ENV, PORT, SESSION_SECRET, VITE_API_BASE_URL, FRONTEND_URL, CORS_ORIGINS,
+    MONTREAL_EMAIL, MONTREAL_PASSWORD, DELAY_MIN, DELAY_MAX, CACHE_PATH, OUTPUT_DIR,
+    LOG_LEVEL, LOG_FILE, CSV_CHUNK_SIZE, BACKUP_DIR, DATE_FORMAT, OUTPUT_FILE_PATTERN,
+    OUTPUT_COLUMNS, REQUIRED_INPUT_COLUMNS, OPTIONAL_INPUT_COLUMNS, BOROUGH_COLUMN
 )
 
-
+# Configure logging
 logger = logging.getLogger(__name__)
+configure_logging(LOG_LEVEL, LOG_FILE)
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Scrape Montreal property data from CSV")
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Scrape Montreal property assessment data from a CSV file.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     
     # Input/Output file arguments
     parser.add_argument(
         "input_file",
-        nargs="?",
-        help="Input CSV file containing addresses to process"
+        type=str,
+        help="Path to input CSV file containing property addresses"
     )
+    
     parser.add_argument(
-        "--output-file",
-        "-o",
-        help="Output CSV file path (default: <input_file>_output.csv)"
+        "--output-file", "-o",
+        type=str,
+        default=None,
+        help="Output CSV file path (default: <input_file>_<timestamp>.csv in OUTPUT_DIR)"
     )
     
     # Processing options
     parser.add_argument(
-        "--max",
+        "--chunk-size",
         type=int,
-        help="Maximum number of addresses to process"
+        default=CSV_CHUNK_SIZE,
+        help="Number of rows to process in each chunk"
+    )
+    
+    parser.add_argument(
+        "--max-rows", "-m",
+        type=int,
+        default=None,
+        help="Maximum number of rows to process"
+    )
+    
+    parser.add_argument(
+        "--start-row",
+        type=int,
+        default=0,
+        help="Row number to start processing from (0-based)"
     )
     
     # Browser options
@@ -63,109 +86,109 @@ def parse_args() -> argparse.Namespace:
         help="Run browser in headless mode"
     )
     
-    # Debugging
+    # Debugging options
     parser.add_argument(
         "--debug",
         action="store_true",
         help="Enable debug logging"
     )
     
+    parser.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="Disable caching of responses"
+    )
+    
+    parser.add_argument(
+        "--no-backup",
+        action="store_true",
+        help="Disable creating backup of input file"
+    )
+    
     return parser.parse_args()
 
 
 def main() -> None:
-    load_dotenv()
+    """Main entry point for the Montreal property data scraper."""
+    # Parse command line arguments
     args = parse_args()
-    configure_logging(level=os.getenv("LOG_LEVEL", "INFO"))
-
-    sheet_name = args.sheet or os.getenv("SHEET_NAME")
-    sheet_tab = args.tab or os.getenv("SHEET_TAB")
-
-    if args.csv and sheet_name:
-        raise SystemExit("Specify either --csv or --sheet")
-    if not args.csv and not sheet_name:
-        raise SystemExit("Specify either --csv or --sheet")
-
-    if not args.csv:
-        args.sheet = sheet_name
-        args.tab = sheet_tab
-        if not args.sheet or not args.tab:
-            raise SystemExit("Both --sheet and --tab (or SHEET_NAME/SHEET_TAB) are required")
-
-    cache_path = Path(os.getenv("CACHE_PATH", "cache.sqlite"))
-    rate_limiter = RateLimiter(delay_min=args.delay_min, delay_max=args.delay_max)
-    cache = Cache(cache_path)
+    
+    # Configure logging
+    log_level = 'DEBUG' if args.debug else LOG_LEVEL
+    configure_logging(log_level, LOG_FILE)
+    
+    # Ensure output directories exist
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    
+    # Initialize rate limiter and cache
+    rate_limiter = RateLimiter(delay_min=DELAY_MIN, delay_max=DELAY_MAX)
+    cache = Cache(CACHE_PATH / 'scraper_cache.sqlite')
+    
+    # Set up output file path
+    input_path = Path(args.input_file).resolve()
+    timestamp = datetime.now().strftime(DATE_FORMAT)
+    
+    if args.output_file:
+        output_path = Path(args.output_file).resolve()
+    else:
+        output_filename = f"{input_path.stem}_{timestamp}.csv"
+        output_path = OUTPUT_DIR / output_filename
+    
+    # Create backup of input file
+    if not args.no_backup:
+        backup_file = BACKUP_DIR / f"{input_path.stem}_{timestamp}{input_path.suffix}"
+        backup_file.parent.mkdir(parents=True, exist_ok=True)
+        import shutil
+        shutil.copy2(input_path, backup_file)
+        logger.info(f"Created backup at: {backup_file}")
+    
     try:
-        with launch_browser(headless=not args.headful) as (_, _, context):
+        # Initialize browser and scraper
+        with launch_browser(headless=args.headless) as (browser, context):
             page = new_page(context)
-            login_email = os.getenv("MONTREAL_EMAIL")
-            login_password = os.getenv("MONTREAL_PASSWORD")
+            
+            # Initialize scraper
             scraper = MontrealRoleScraper(
                 page=page,
-                cache=cache,
+                cache=cache if not args.no_cache else None,
                 rate_limiter=rate_limiter,
-                login_email=login_email,
-                login_password=login_password,
+                login_email=MONTREAL_EMAIL,
+                login_password=MONTREAL_PASSWORD,
             )
-            if args.login:
-                if not login_email or not login_password:
-                    raise SystemExit("Missing MONTREAL_EMAIL or MONTREAL_PASSWORD in environment")
-                scraper.login(login_email, login_password)
-
-            if args.csv:
-                process_csv(Path(args.csv), scraper, args)
-            else:
-                process_sheet(args, scraper)
+            
+            # Process the CSV file
+            process_csv(
+                input_path=input_path,
+                output_path=output_path,
+                scraper=scraper,
+                chunk_size=args.chunk_size,
+                max_rows=args.max_rows,
+                start_row=args.start_row
+            )
+            
+            logger.info(f"Processing complete. Output saved to: {output_path}")
+            
+    except Exception as e:
+        logger.error(f"An error occurred: {str(e)}", exc_info=args.debug)
+        sys.exit(1)
+        
     finally:
+        # Clean up
         cache.close()
+        logger.info("Scraping session completed")
 
 
-def process_csv(path: Path, scraper: MontrealRoleScraper, args):
-    df = read_csv(path)
-    backup_original(path, df.copy())
-    start_index = max(0, args.from_row - 2)
-    processed = 0
-    failures: List[Tuple[int, str]] = []
-    borough_present = BOROUGH_COLUMN in df.columns
-    if not borough_present:
-        logger.warning(
-            "Column '%s' not found in CSV; borough-aware selection will be skipped",
-            BOROUGH_COLUMN,
-        )
-    for idx in range(start_index, len(df)):
-        if args.max and processed >= args.max:
-            break
-        row = df.iloc[idx].to_dict()
-        row = ensure_output_columns(row)
-        query = parse_input_row(row)
-        status = "error:missing_address"
-        result: Dict[str, str] = {}
-        if query and not query.borough and borough_present:
-            logger.debug(
-                "Row %s missing borough value in '%s'; falling back to address-only matching",
-                idx + 1,
-                BOROUGH_COLUMN,
-            )
-        if not query:
-            logger.warning("Skipping row %s due to missing address fields", idx + 1)
-        else:
-            result = scraper.fetch(query) or {}
-            status = result.get("status", "error:unknown")
-        if status == "ok":
-            for key in OUTPUT_COLUMNS:
-                df.at[idx, key] = result.get(key, "")
-        else:
-            df.at[idx, "status"] = status
-            failures.append((idx + 1, status))
-        processed += 1
-    if failures:
-        for row_number, failure_status in failures:
-            logger.warning("Row %s not updated due to status '%s'", row_number, failure_status)
-    write_csv(path, df)
-    enriched_path = path.with_name(f"{path.stem}_enriched{path.suffix}")
-    df.to_csv(enriched_path, index=False)
-    export_snapshot(df, Path("exports"))
-
+def process_csv(
+    input_path: Path,
+    output_path: Path,
+    scraper: MontrealRoleScraper,
+    chunk_size: int = 50,
+    max_rows: Optional[int] = None,
+    start_row: int = 0
+) -> None:
+    """
+    Process a CSV file containing property addresses and save the results.
 
 def process_csv(args, scraper: MontrealRoleScraper) -> None:
     """Process addresses from a CSV file and write results to a new CSV."""
@@ -255,128 +278,6 @@ def process_csv(args, scraper: MontrealRoleScraper) -> None:
             logger.info(f"Reached maximum number of rows to process ({args.max})")
             break
     
-    logger.info(f"Processing complete. Total: {total_processed}, Success: {success_count}, Failed: {failure_count}")
-    logger.info(f"Output saved to: {csv_handler.output_path}")
-    return csv_handler.output_path
-
-
-def _commit_batch(
-    ws,
-    indexed_rows: List[Tuple[int, Dict[str, str], Dict[str, str]]],
-    header: List[str],
-) -> None:
-    if not indexed_rows:
-        return
-    ordered = sorted(indexed_rows, key=lambda item: item[0])
-    current_start: int = -1
-    current_rows: List[Tuple[int, Dict[str, str], Dict[str, str]]] = []
-    previous_row: int = -1
-
-    def _dispatch(start: int, rows: List[Tuple[int, Dict[str, str], Dict[str, str]]]) -> None:
-        if not rows:
-            return
-        updated_payload = [updated for (_, _, updated) in rows]
-        try:
-            batch_update(ws, start, updated_payload, header)
-        except Exception as exc:
-            end_row = start + len(rows) - 1
-            range_label = range_for_rows(start, len(rows), header)
-            logger.warning(
-                "sheets.batch_failure %s",
-                json.dumps({
-                    "start_row": start,
-                    "end_row": end_row,
-                    "range": range_label,
-                    "error": str(exc),
-                }),
-            )
-            snapshot = None
-            if hasattr(ws, "get"):
-                try:
-                    snapshot = ws.get(range_label)
-                except Exception as fetch_exc:
-                    logger.debug(
-                        "Unable to snapshot rows %s-%s prior to rollback: %s",
-                        start,
-                        end_row,
-                        fetch_exc,
-                    )
-            if snapshot is not None:
-                logger.info(
-                    "sheets.snapshot %s",
-                    json.dumps({
-                        "range": range_label,
-                        "values": snapshot,
-                    }),
-                )
-            original_payload = [original for (_, original, _) in rows]
-            try:
-                batch_update(ws, start, original_payload, header)
-            except Exception as rollback_exc:
-                logger.error(
-                    "Rollback failed for rows %s-%s: %s",
-                    start,
-                    end_row,
-                    rollback_exc,
-                )
-                raise
-            logger.info(
-                "sheets.rollback %s",
-                json.dumps({
-                    "start_row": start,
-                    "end_row": end_row,
-                    "range": range_label,
-                }),
-            )
-            time.sleep(2)
-            try:
-                batch_update(ws, start, updated_payload, header)
-            except Exception as final_exc:
-                logger.error(
-                    "Batch update retry failed for rows %s-%s: %s",
-                    start,
-                    end_row,
-                    final_exc,
-                )
-                raise
-
-    for row_number, original, updated in ordered:
-        if not current_rows:
-            current_start = row_number
-            current_rows = [(row_number, original, updated)]
-        elif row_number == previous_row + 1:
-            current_rows.append((row_number, original, updated))
-        else:
-            _dispatch(current_start, current_rows)
-            current_start = row_number
-            current_rows = [(row_number, original, updated)]
-        previous_row = row_number
-    _dispatch(current_start, current_rows)
-
-
-def _apply_status_updates(ws, header: List[str], updates: List[Tuple[int, str]]) -> None:
-    if not updates:
-        return
-    try:
-        status_col_index = header.index("status") + 1
-    except ValueError:
-        logger.error("Status column missing from header; cannot record failures")
-        return
-    try:
-        from gspread.utils import rowcol_to_a1
-    except ImportError:
-        logger.error("gspread is required to update status cells")
-        return
-
-    for row_number, status in updates:
-        cell = rowcol_to_a1(row_number, status_col_index)
-        try:
-            ws.update(cell, [[status]])
-        except Exception as exc:
-            logger.error(
-                "Failed to update status for row %s at %s: %s",
-                row_number,
-                cell,
                 exc,
             )
 
