@@ -1,33 +1,20 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Toaster } from "@/components/ui/toaster";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import Upload from "@/pages/Upload";
 
-// Simple Home component
-const Home = () => (
-  <div className="min-h-screen flex items-center justify-center">
-    <h1 className="text-3xl font-bold">Welcome to the App</h1>
-  </div>
-);
+const queryClient = new QueryClient();
 
-// Simple About component
-const About = () => (
-  <div className="min-h-screen flex items-center justify-center">
-    <h1 className="text-3xl font-bold">About Page</h1>
-  </div>
-);
-
-const AppContent = () => {
-  return (
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <Toaster />
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/about" element={<About />} />
-        <Route path="*" element={<div>Page not found</div>} />
+        <Route path="/" element={<Navigate to="/upload" replace />} />
+        <Route path="/upload" element={<Upload />} />
       </Routes>
     </BrowserRouter>
-  );
-};
-
-const App = () => {
-  return <AppContent />;
-};
+  </QueryClientProvider>
+);
 
 export default App;

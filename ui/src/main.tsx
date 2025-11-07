@@ -3,9 +3,6 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 
-// Add Tailwind CSS
-import './styles/globals.css';
-
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );

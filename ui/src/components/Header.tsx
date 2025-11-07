@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { Building2, Menu } from "lucide-react";
 import { useState } from "react";
 
@@ -11,27 +10,19 @@ const Header = () => {
       <nav className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors">
           <Building2 className="h-6 w-6" />
-          <span className="font-bold text-lg">Montreal Property Scraper</span>
+          <span className="font-bold text-lg">Property Data Processor</span>
         </Link>
         
         <div className="hidden md:flex items-center gap-6">
-          <Link to="/dashboard" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-            Dashboard
+          <Link to="/upload" className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium">
+            Process Data
           </Link>
-          <Link to="/properties" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-            Properties
-          </Link>
-          <Link to="/upload" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-            Upload
-          </Link>
-          <Button variant="default" size="sm">
-            Sign In
-          </Button>
         </div>
 
         <button
           className="md:hidden"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
+          aria-label="Toggle menu"
         >
           <Menu className="h-6 w-6" />
         </button>
@@ -40,18 +31,13 @@ const Header = () => {
       {isMenuOpen && (
         <div className="md:hidden bg-background border-b border-border py-4 animate-fade-in">
           <div className="container mx-auto px-4 flex flex-col gap-4">
-            <Link to="/dashboard" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Dashboard
+            <Link 
+              to="/upload" 
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Process Data
             </Link>
-            <Link to="/properties" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Properties
-            </Link>
-            <Link to="/upload" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Upload
-            </Link>
-            <Button variant="default" size="sm" className="w-full">
-              Sign In
-            </Button>
           </div>
         </div>
       )}
