@@ -17,7 +17,7 @@
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "test": "jest",
     "vercel-build": "npm run ui:install && npm run build",
-    "prepare": "if [ -f node_modules/.bin/husky ]; then npx husky install || true; fi",
+    "prepare": "if exist node_modules/.bin/husky npx husky install || exit 0",
     "vercel-dev": "npm run dev",
     "vercel-preview": "npm run build && npm run start"
   },

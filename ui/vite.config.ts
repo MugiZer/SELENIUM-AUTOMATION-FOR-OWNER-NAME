@@ -5,6 +5,8 @@ import path from 'path';
 export default defineConfig({
   base: '/',
   plugins: [react()],
+  // Handle HTML files and other assets
+  assetsInclude: ['**/*.html'],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -13,6 +15,8 @@ export default defineConfig({
       '@pages': path.resolve(__dirname, './src/pages'),
       '@hooks': path.resolve(__dirname, './src/hooks'),
     },
+    // Ensure proper file extensions are resolved
+    extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json', '.html'],
   },
   build: {
     outDir: 'dist',
