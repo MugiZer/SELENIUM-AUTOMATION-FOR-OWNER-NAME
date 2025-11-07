@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+ui/node_modules/
 
 # Environment files
 .env
@@ -7,17 +8,77 @@ node_modules/
 !.env.example
 
 # Build outputs
-.next
-.nuxt
-dist
-build
-out
-.serverless
-.serverless_nextjs
+.next/
+.nuxt/
+dist/
+build/
+out/
+.serverless/
+.serverless_nextjs/
+ui/dist/
 
 # Debug logs
 npm-debug.log*
 yarn-debug.log*
+yarn-error.log*
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Test and coverage directories
+coverage/
+.nyc_output/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Project specific
+scraper/
+!scraper/__init__.py
+!scraper/schema.py
+!scraper/montreal_role.py
+!scraper/rate.py
+!scraper/cache.py
+!scraper/parsers.py
+
+# Ignore large files
+*.csv
+*.xlsx
+*.xls
+*.db
+*.sqlite
+*.sqlite3
 yarn-error.log*
 *.log
 

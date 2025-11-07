@@ -72,20 +72,20 @@ export default defineConfig(({ mode }) => {
       // Configure path aliases
       alias: [
         { 
-          find: '@',
-          replacement: path.resolve(__dirname, './src')
+          find: /^@\//,
+          replacement: path.resolve(__dirname, 'src') + '/'
         },
         { 
-          find: '@lib',
-          replacement: path.resolve(__dirname, './src/lib')
+          find: /^@lib\//,
+          replacement: path.resolve(__dirname, 'src/lib') + '/'
         },
         { 
-          find: '@components',
-          replacement: path.resolve(__dirname, './src/components')
+          find: /^@components\//,
+          replacement: path.resolve(__dirname, 'src/components') + '/'
         },
         { 
-          find: '@pages',
-          replacement: path.resolve(__dirname, './src/pages')
+          find: /^@pages\//,
+          replacement: path.resolve(__dirname, 'src/pages') + '/'
         }
       ],
       // Ensure Node.js polyfills are available

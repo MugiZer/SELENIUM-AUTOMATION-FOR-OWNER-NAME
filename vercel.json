@@ -3,29 +3,23 @@
   "builds": [
     {
       "src": "server.js",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": [
-          "config.js",
-          "node_modules/**/*",
-          "ui/dist/**/*"
-        ]
-      }
+      "use": "@vercel/node"
     },
     {
       "src": "ui/package.json",
       "use": "@vercel/static-build",
       "config": {
         "distDir": "dist",
-        "installCommand": "cd ui && npm install",
-        "buildCommand": "cd ui && npm run build"
+        "installCommand": "cd ui && npm install --omit=dev",
+        "buildCommand": "cd ui && npm run build",
+        "outputDirectory": "dist"
       }
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "server.js"
+      "dest": "/server.js"
     },
     {
       "src": "/(.*)",
