@@ -58,6 +58,9 @@ export default defineConfig(({ mode }) => {
           },
         },
       },
+      commonjsOptions: {
+        esmExternals: true,
+      },
     },
     plugins: [
       react(),
@@ -65,24 +68,24 @@ export default defineConfig(({ mode }) => {
     ].filter(Boolean) as any[],
     resolve: {
       // Ensure consistent file extension resolution
-      extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
+      extensions: ['.ts', '.tsx', '.js', '.jsx', '.json', '.mjs'],
       // Configure path aliases
       alias: [
         { 
-          find: '@', 
-          replacement: path.resolve(__dirname, 'src') 
+          find: /^@\/(.*)/,
+          replacement: path.resolve(__dirname, './src/$1')
         },
         { 
-          find: '@components', 
-          replacement: path.resolve(__dirname, 'src/components') 
+          find: /^@components\/(.*)/, 
+          replacement: path.resolve(__dirname, './src/components/$1') 
         },
         { 
-          find: '@lib', 
-          replacement: path.resolve(__dirname, 'src/lib') 
+          find: /^@lib\/(.*)/, 
+          replacement: path.resolve(__dirname, './src/lib/$1') 
         },
         { 
-          find: '@pages', 
-          replacement: path.resolve(__dirname, 'src/pages') 
+          find: /^@pages\/(.*)/, 
+          replacement: path.resolve(__dirname, './src/pages/$1') 
         },
       ],
       // Ensure Node.js polyfills are available
