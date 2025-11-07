@@ -16,8 +16,10 @@
     "build:no-validate": "cd ui && npm run build",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "test": "jest",
-    "vercel-build": "cd ui && npm install --omit=dev && npm run build",
-    "prepare": "if [ -f node_modules/.bin/husky ]; then npx husky install || true; fi"
+    "vercel-build": "npm run ui:install && npm run build",
+    "prepare": "if [ -f node_modules/.bin/husky ]; then npx husky install || true; fi",
+    "vercel-dev": "npm run dev",
+    "vercel-preview": "npm run build && npm run start"
   },
   "dependencies": {
     "@types/express-session": "^1.18.2",

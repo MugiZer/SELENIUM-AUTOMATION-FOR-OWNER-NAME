@@ -48,5 +48,9 @@
   "env": {
     "NODE_ENV": "production"
   },
-  "regions": ["iad1"]
+  "regions": ["iad1"],
+  "buildCommand": "npm run vercel-build",
+  "devCommand": "npm run vercel-dev",
+  "installCommand": "npm install",
+  "outputDirectory": "ui/dist"
 }
