@@ -29,7 +29,7 @@ export default defineConfig(({ mode }) => {
     return acc;
   }, {} as Record<string, string>);
 
-  return {
+  const config = {
     define: {
       ...envVars,
       'process.env.NODE_ENV': JSON.stringify(mode),
@@ -72,21 +72,21 @@ export default defineConfig(({ mode }) => {
       // Configure path aliases
       alias: [
         { 
-          find: /^@\/(.*)/,
-          replacement: path.resolve(__dirname, './src/$1')
+          find: '@',
+          replacement: path.resolve(__dirname, './src')
         },
         { 
-          find: /^@components\/(.*)/, 
-          replacement: path.resolve(__dirname, './src/components/$1') 
+          find: '@lib',
+          replacement: path.resolve(__dirname, './src/lib')
         },
         { 
-          find: /^@lib\/(.*)/, 
-          replacement: path.resolve(__dirname, './src/lib/$1') 
+          find: '@components',
+          replacement: path.resolve(__dirname, './src/components')
         },
         { 
-          find: /^@pages\/(.*)/, 
-          replacement: path.resolve(__dirname, './src/pages/$1') 
-        },
+          find: '@pages',
+          replacement: path.resolve(__dirname, './src/pages')
+        }
       ],
       // Ensure Node.js polyfills are available
       aliasFields: ['browser'],
@@ -96,4 +96,12 @@ export default defineConfig(({ mode }) => {
     },
     // Environment variables are already defined above
   };
+  
+  // For debugging
+  console.log('Vite config:', {
+    resolve: config.resolve,
+    define: Object.keys(config.define || {})
+  });
+  
+  return config;
 });
