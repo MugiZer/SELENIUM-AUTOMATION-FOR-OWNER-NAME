@@ -20,7 +20,35 @@ interface CSVStats {
   headers: string[];
 }
 
-const EXPECTED_COLUMNS = ['address', 'ownerName'];
+// These are the required columns we need from the CSV
+const REQUIRED_COLUMNS = ['CIVIQUE_DEBUT', 'NOM_RUE', 'NO_ARROND_ILE_CUM'];
+
+// Mapping from CSV column names to our internal field names
+const COLUMN_MAPPING: Record<string, string> = {
+  'CIVIQUE_DEBUT': 'civic_number',
+  'NOM_RUE': 'street_name',
+  'NO_ARROND_ILE_CUM': 'borough',
+  'NOMBRE_LOGEMENT': 'nb_logements',
+  'MATRICULE83': 'matricule',
+  'NOM_ARROND_ILE': 'borough_name',
+  'OWNER INFO': 'owner_info',
+  'BUILDING VALUE': 'building_value',
+  'PHONE NUMBER': 'phone_number',
+  'NAME FOR CORP.': 'corp_name',
+  'EMAIL': 'email',
+  'PERSONAL ADDRESS': 'personal_address'
+};
+
+// These are the columns we'll include in the output
+const OUTPUT_COLUMNS = [
+  'civic_number',
+  'street_name',
+  'borough',
+  'nb_logements',
+  'matricule',
+  'owner_names',  // This will be populated later
+  'status'        // This will show processing status
+];
 
 const FileUpload = () => {
   const [isDragging, setIsDragging] = useState(false);
@@ -62,13 +90,21 @@ const FileUpload = () => {
     e.target.value = '';
   }, []);
 
-  const validateRow = (row: any): boolean => {
-    // Check if required fields exist and are not empty
-    return EXPECTED_COLUMNS.every(
-      field => row[field] !== undefined && 
-              row[field] !== null && 
-              String(row[field]).trim() !== ''
-    );
+  const validateRow = (row: any): { isValid: boolean, missingFields: string[] } => {
+    const missingFields: string[] = [];
+    
+    // Check each required field
+    for (const field of REQUIRED_COLUMNS) {
+      const value = row[field];
+      if (value === undefined || value === null || String(value).trim() === '') {
+        missingFields.push(field);
+      }
+    }
+    
+    return {
+      isValid: missingFields.length === 0,
+      missingFields
+    };
   };
 
   const processCSV = (results: ParseResult<Record<string, unknown>>): { validData: PropertyData[], stats: CSVStats } => {
@@ -79,23 +115,34 @@ const FileUpload = () => {
       // Skip empty rows
       if (Object.keys(row).length === 0) return;
       
-      if (validateRow(row)) {
-        // Ensure consistent property names (case-insensitive)
-        const processedRow: PropertyData = {
-          address: row.address || row.Address || '',
-          ownerName: row.ownerName || row.ownername || row.OwnerName || row.owner_name || '',
-          // Preserve all other fields
-          ...Object.entries(row).reduce((acc, [key, value]) => {
-            const lowerKey = key.toLowerCase();
-            if (!['address', 'ownername', 'owner_name'].includes(lowerKey)) {
-              acc[key] = value;
-            }
-            return acc;
-          }, {} as Record<string, any>)
-        };
+      const { isValid, missingFields } = validateRow(row);
+      
+      if (isValid) {
+        const processedRow: any = { status: 'pending' }; // Default status
+        
+        // Map the CSV columns to our internal field names
+        Object.entries(row).forEach(([key, value]) => {
+          const mappedKey = COLUMN_MAPPING[key] || key;
+          if (value !== undefined && value !== null && value !== '') {
+            processedRow[mappedKey] = value;
+          }
+        });
+        
+        // Ensure we have all required output columns
+        for (const col of OUTPUT_COLUMNS) {
+          if (processedRow[col] === undefined) {
+            processedRow[col] = ''; // Initialize empty for required output columns
+          }
+        }
+        
         validData.push(processedRow);
       } else {
-        invalidRows.push({ row: index + 1, data: row });
+        console.warn(`Skipping row ${index + 1}: Missing required fields - ${missingFields.join(', ')}`);
+        invalidRows.push({ 
+          row: index + 1, 
+          missingFields,
+          data: row
+        });
       }
     });
 
