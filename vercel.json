@@ -2,21 +2,23 @@
   "version": 2,
   "builds": [
     {
-      "src": "server.js",
-      "use": "@vercel/node"
-    },
-    {
       "src": "ui/package.json",
       "use": "@vercel/static-build",
       "config": {
         "distDir": "dist",
-        "installCommand": "cd ui && npm install --omit=dev",
-        "buildCommand": "cd ui && npm run build",
-        "outputDirectory": "dist"
+        "installCommand": "npm install",
+        "buildCommand": "npm run build"
       }
+    },
+    {
+      "src": "server.js",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
+    {
+      "handle": "filesystem"
+    },
     {
       "src": "/api/(.*)",
       "dest": "/server.js"
