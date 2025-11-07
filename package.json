@@ -16,8 +16,8 @@
     "build:no-validate": "cd ui && npm run build",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "test": "jest",
-    "vercel-build": "npm run ui:install && npm run build",
-    "prepare": "if exist node_modules/.bin/husky npx husky install || exit 0",
+    "vercel-build": "npm install && cd ui && npm install && npm run build",
+    "prepare": "[ -f node_modules/.bin/husky ] && npx husky install || exit 0",
     "vercel-dev": "npm run dev",
     "vercel-preview": "npm run build && npm run start"
   },
