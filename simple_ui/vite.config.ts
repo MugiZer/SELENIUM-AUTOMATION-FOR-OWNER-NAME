@@ -11,39 +11,40 @@ export default defineConfig(({ mode }) => {
     base: mode === 'production' ? '/simple_ui/dist/' : '/',
     plugins: [react()],
     define: {
-      'import.meta.env.BASE_URL': JSON.stringify(mode === 'production' ? '/simple_ui/dist/' : '/'),
+      'import.meta.env.BASE_URL': JSON.stringify(mode === 'production' ? '/simple_ui/dist/' : '/')
     },
     resolve: {
       alias: {
-        '@': resolve(__dirname, './src'),
-      },
+        '@': resolve(__dirname, './src')
+      }
     },
     server: {
       port: 3000,
-      open: true,
-  },
-  build: {
-    outDir: 'dist',
-    emptyOutDir: true,
-    sourcemap: true,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          // Split vendor and app code
-          vendor: ['react', 'react-dom'],
-        },
-        // Ensure consistent hashing for better caching
-        entryFileNames: 'assets/[name].[hash].js',
-        chunkFileNames: 'assets/[name].[hash].js',
-        assetFileNames: 'assets/[name].[hash][extname]',
-        // Ensure absolute paths for all assets
-        paths: (id) => {
-          if (id.includes('node_modules')) {
-            return id;
-          }
-          return `/${id}`;
-        },
-      },
+      open: true
     },
-  },
+    build: {
+      outDir: 'dist',
+      emptyOutDir: true,
+      sourcemap: true,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // Split vendor and app code
+            vendor: ['react', 'react-dom']
+          },
+          // Ensure consistent hashing for better caching
+          entryFileNames: 'assets/[name].[hash].js',
+          chunkFileNames: 'assets/[name].[hash].js',
+          assetFileNames: 'assets/[name].[hash][extname]',
+          // Ensure absolute paths for all assets
+          paths: (id: string): string => {
+            if (id.includes('node_modules')) {
+              return id;
+            }
+            return `/${id}`;
+          }
+        }
+      }
+    }
+  }
 });
