@@ -6,9 +6,10 @@ import { resolve } from 'path';
 export default defineConfig(({ mode }) => {
   // Load environment variables based on the current mode (development/production)
   const env = loadEnv(mode, process.cwd(), '');
+  const isProduction = mode === 'production';
   
   return {
-    base: mode === 'production' ? '/simple_ui/dist/' : '/',
+    base: isProduction ? '/' : '/',
     plugins: [react()],
     define: {
       'import.meta.env.BASE_URL': JSON.stringify(mode === 'production' ? '/simple_ui/dist/' : '/')
