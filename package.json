@@ -8,7 +8,7 @@
     "preinstall": "node -v",
     "prestart": "node -r ./config.js validateEnv",
     "start": "NODE_ENV=production node server.js",
-    "dev": "cross-env NODE_ENV=development concurrently -n 'UI,API' -c 'bgBlue.bold,bgGreen.bold' \"npm run ui:dev\" \"nodemon -r ./config.js server.js\"",
+    "dev": "cross-env NODE_ENV=development concurrently -n 'UI,API' -c 'bgBlue.bold,bgGreen.bold' \"cd simple_ui && npm run dev\" \"nodemon -r ./config.js server.js\"",
     "build": "npm run build:ui && npm run build:server",
     "build:ui": "cd simple_ui && npm ci && npm run build",
     "build:server": "npm ci --omit=dev",
@@ -17,8 +17,8 @@
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
     "type-check": "tsc --noEmit",
     "check": "npm run lint && npm run type-check && npm run test",
-    "prepare": "husky install",
-    "vercel-build": "npm run build",
+    "prepare": "[ \"$CI\" != \"true\" ] && npx husky install || echo \"Skipping husky install in CI\"",
+    "vercel-build": "npm install --omit=dev && npm run build:ui",
     "vercel-dev": "npm run dev",
     "vercel-preview": "npm run build && npm run start"
   },
@@ -37,6 +37,7 @@
     "winston": "^3.11.0"
   },
   "devDependencies": {
+    "husky": "^9.1.7",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/express-session": "^1.18.2",

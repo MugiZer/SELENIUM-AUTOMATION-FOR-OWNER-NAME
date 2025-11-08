@@ -17,12 +17,16 @@
     },
     {
       "src": "/(.*)",
-      "dest": "/simple_ui/dist/index.html"
+      "dest": "/simple_ui/dist/$1",
+      "headers": {
+        "Cache-Control": "public, max-age=0, must-revalidate"
+      }
     }
   ],
   "env": {
     "NODE_ENV": "production"
   },
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist"
+  "buildCommand": "npm run vercel-build",
+  "installCommand": "npm install --prefer-offline",
+  "outputDirectory": "simple_ui/dist"
 }

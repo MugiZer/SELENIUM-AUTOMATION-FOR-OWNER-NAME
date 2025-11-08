@@ -3,21 +3,24 @@ import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
 // https://vitejs.dev/config/
-export default defineConfig({
-  base: '/', // Use root-relative paths for Vercel
-  plugins: [react()],
-  // Ensure consistent base URL for all assets
-  define: {
-    'import.meta.env.BASE_URL': JSON.stringify('/'),
-  },
-  resolve: {
-    alias: {
-      '@': resolve(__dirname, './src'),
+export default defineConfig(({ mode }) => {
+  // Load environment variables based on the current mode (development/production)
+  const env = loadEnv(mode, process.cwd(), '');
+  
+  return {
+    base: mode === 'production' ? '/simple_ui/dist/' : '/',
+    plugins: [react()],
+    define: {
+      'import.meta.env.BASE_URL': JSON.stringify(mode === 'production' ? '/simple_ui/dist/' : '/'),
     },
-  },
-  server: {
-    port: 3000,
-    open: true,
+    resolve: {
+      alias: {
+        '@': resolve(__dirname, './src'),
+      },
+    },
+    server: {
+      port: 3000,
+      open: true,
   },
   build: {
     outDir: 'dist',
