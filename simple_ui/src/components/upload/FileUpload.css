@@ -1,0 +1,59 @@
+.file-upload-container {
+  margin: 2rem 0;
+  width: 100%;
+  max-width: 600px;
+}
+
+.dropzone {
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: #f9f9f9;
+  min-height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dropzone:hover,
+.dropzone.active {
+  border-color: #646cff;
+  background-color: #f0f2ff;
+}
+
+.dropzone.uploading {
+  background-color: #f0f8ff;
+  border-color: #2196f3;
+}
+
+.upload-prompt p {
+  margin: 0.5rem 0;
+  color: #555;
+}
+
+.file-requirements {
+  font-size: 0.9em;
+  color: #777;
+}
+
+.upload-progress {
+  width: 100%;
+  text-align: center;
+}
+
+.progress-bar {
+  height: 8px;
+  background-color: #646cff;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  transition: width 0.3s ease;
+}
+
+.upload-progress p {
+  margin: 0;
+  color: #333;
+  font-weight: 500;
+}

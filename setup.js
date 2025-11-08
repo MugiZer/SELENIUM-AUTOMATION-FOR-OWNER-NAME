@@ -29,29 +29,6 @@ const questions = [
     validate: (input) => !!input || 'Password is required'
   },
   {
-    name: 'GOOGLE_SERVICE_ACCOUNT_JSON',
-    message: 'Paste your Google Service Account JSON (minified, all in one line):',
-    multiline: true,
-    validate: (input) => {
-      try {
-        JSON.parse(input);
-        return true;
-      } catch (e) {
-        return 'Invalid JSON. Please provide a valid JSON string';
-      }
-    }
-  },
-  {
-    name: 'SHEET_NAME',
-    message: 'Enter Google Sheet name (default: Sheet1):',
-    default: 'Sheet1'
-  },
-  {
-    name: 'SHEET_TAB',
-    message: 'Enter Google Sheet tab name (default: Data):',
-    default: 'Data'
-  },
-  {
     name: 'DELAY_MIN',
     message: 'Minimum delay between requests in seconds (default: 1.5):',
     default: '1.5',

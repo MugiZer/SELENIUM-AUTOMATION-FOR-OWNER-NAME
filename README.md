@@ -1,17 +1,16 @@
 # Montréal Role d'évaluation Scraper
 
-This project automates the Montréal Rôle d’évaluation foncière workflow for CSV or Google Sheets inputs. It enriches rows with owner and assessment data while respecting ToS-friendly scraping practices (rate limiting, retries, and stealth browser behaviors).
+This project automates the Montréal Rôle d'évaluation foncière workflow for CSV files. It enriches rows with owner and assessment data while respecting ToS-friendly scraping practices (rate limiting, retries, and stealth browser behaviors).
 
 ## Features
 
-- Playwright (Chromium) automation with basic stealth evasion.
-- Supports CSV and Google Sheets sources via a unified CLI.
-- Retries with exponential backoff and jittered delays between requests.
-- SQLite cache prevents duplicate work on re-runs.
-- Deterministic output schema appended to each data source.
-- Atomic CSV overwrites, timestamped backups, and snapshot exports.
-- Google Sheets batching with rollback-aware retry handling.
-- Structured logging to console and `logs/run.log`.
+- Playwright (Chromium) automation with basic stealth evasion
+- CSV file processing with automatic output generation
+- Retries with exponential backoff and jittered delays between requests
+- SQLite cache prevents duplicate work on re-runs
+- Deterministic output schema for processed data
+- Atomic CSV overwrites with timestamped backups
+- Structured logging to console and `logs/run.log`
 
 ## Requirements
 
@@ -31,28 +30,33 @@ Copy `.env.example` to `.env` and fill in the values:
 
 | Variable | Description |
 | --- | --- |
-| `MONTREAL_EMAIL` | Optional: account email used when `--login` is supplied. |
-| `MONTREAL_PASSWORD` | Optional: password for the Montréal account. |
-| `GOOGLE_SERVICE_ACCOUNT_JSON` | Path to a Google service account JSON file or the JSON string itself. Required for Sheets mode. |
-| `SHEET_NAME` / `SHEET_TAB` | Defaults for CLI flags. |
-| `DELAY_MIN` / `DELAY_MAX` | Default jitter window (seconds). |
-| `CACHE_PATH` | Path to the SQLite cache file. |
-| `LOG_LEVEL` | Logging verbosity (e.g., `INFO`). |
-
-## Google Sheets Setup
-
-1. Create a Google Cloud project and enable the Sheets API.
-2. Generate a service account with the "Editor" role.
-3. Download the service account JSON and share your spreadsheet with the service account email.
-4. Provide the JSON file path (or inline JSON string) via `GOOGLE_SERVICE_ACCOUNT_JSON`.
+| `MONTREAL_EMAIL` | Optional: account email used when `--login` is supplied |
+| `MONTREAL_PASSWORD` | Optional: password for the Montréal account |
+| `DELAY_MIN` / `DELAY_MAX` | Delay between requests in seconds (default: 1.5-3.0) |
+| `CACHE_PATH` | Path to the SQLite cache file (default: `cache/cache.db`) |
+| `LOG_LEVEL` | Logging verbosity (e.g., `INFO`, `DEBUG`) |
+| `INPUT_DIR` | Directory containing input CSV files (default: `input/`) |
+| `OUTPUT_DIR` | Directory for processed output files (default: `output/`) |
+| `LOG_DIR` | Directory for log files (default: `logs/`) |
+| `BACKUP_DIR` | Directory for backup files (default: `backups/`)
 
 ## CLI Usage
 
 ```bash
-python main.py --csv ./input/mtl_targets.csv --max 250 --delay-min 1.5 --delay-max 3.0
-python main.py --sheet "MTL Plex Leads" --tab "20-40" --from-row 2
-python main.py --csv ./input/mtl_targets.csv --headful
-python main.py --sheet "MTL Plex Leads" --tab "20-40" --login
+# Process a CSV file with default settings
+python main.py --input input/properties.csv
+
+# Process with custom delay between requests
+python main.py --input input/properties.csv --delay-min 1.5 --delay-max 3.0
+
+# Process in headful mode (shows browser)
+python main.py --input input/properties.csv --headful
+
+# Process with login (if required)
+python main.py --input input/properties.csv --login
+
+# Limit number of records to process
+python main.py --input input/properties.csv --max 100
 ```
 
 ## Configuring Git remotes for PR automation
@@ -165,12 +169,10 @@ pytest
 
 ## Troubleshooting
 
-- **Playwright missing browsers**: run `playwright install`.
-- **Authentication failures**: ensure `MONTREAL_EMAIL` and `MONTREAL_PASSWORD` are set and valid.
-- **Sheets authentication**: confirm the spreadsheet is shared with the service account email and the JSON credentials are correct.
-- **429 or 5xx responses**: the scraper retries automatically with exponential backoff while keeping rate limits.
-- **Borough mismatches**: verify `NO_ARROND_ILE_CUM` values match the canonical list exactly; typos force the scraper to fall back to
-  address-only matching and return a `multiple_matches` or `not_found` status.
+- **Playwright missing browsers**: run `playwright install`
+- **Authentication failures**: ensure `MONTREAL_EMAIL` and `MONTREAL_PASSWORD` are set and valid if using `--login`
+- **429 or 5xx responses**: the scraper retries automatically with exponential backoff
+- **Borough mismatches**: verify borough names match the canonical list exactly; typos may cause address matching issues
 
 ## Appendix: DevTools Data (verbatim)
 

@@ -1,26 +1,51 @@
-import React, { useState, ReactElement } from 'react';
+import React, { ReactElement } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import Dashboard from './components/dashboard/Dashboard';
 import './App.css';
 
-// Add type for the component
-const App: React.FC = (): ReactElement => {
-  const [count, setCount] = useState<number>(0);
+// Create a theme instance
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#646cff',
+    },
+    secondary: {
+      main: '#ff4081',
+    },
+    background: {
+      default: '#f5f5f5',
+    },
+  },
+  typography: {
+    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+    h1: {
+      fontSize: '2.5rem',
+      fontWeight: 500,
+    },
+    h2: {
+      fontSize: '2rem',
+      fontWeight: 500,
+    },
+  },
+});
 
+const App: React.FC = (): ReactElement => {
   return (
-    <div className="app">
-      <h1>Property Scraper</h1>
-      <div className="card">
-        <button onClick={() => setCount((prevCount: number) => prevCount + 1)}>
-          Count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </div>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Router>
+        <div className="app">
+          <main>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+            </Routes>
+          </main>
+        </div>
+      </Router>
+    </ThemeProvider>
   );
-}
+};
 
 export default App;

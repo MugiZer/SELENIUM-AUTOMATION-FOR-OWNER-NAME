@@ -31,12 +31,13 @@ DELAY_MAX = float(os.getenv('DELAY_MAX', '3.0'))
 
 # File storage configuration
 CACHE_PATH = Path(os.getenv('CACHE_PATH', 'cache')).resolve()
+INPUT_DIR = Path(os.getenv('INPUT_DIR', 'input')).resolve()
 OUTPUT_DIR = Path(os.getenv('OUTPUT_DIR', 'output')).resolve()
 LOG_DIR = Path(os.getenv('LOG_DIR', 'logs')).resolve()
 BACKUP_DIR = Path(os.getenv('BACKUP_DIR', 'backups')).resolve()
 
 # Ensure directories exist
-for directory in [CACHE_PATH, OUTPUT_DIR, LOG_DIR, BACKUP_DIR]:
+for directory in [CACHE_PATH, INPUT_DIR, OUTPUT_DIR, LOG_DIR, BACKUP_DIR]:
     directory.mkdir(parents=True, exist_ok=True)
 
 # Logging configuration
@@ -46,7 +47,15 @@ LOG_FILE = Path(LOG_DIR) / 'app.log'
 # CSV processing
 CSV_CHUNK_SIZE = int(os.getenv('CSV_CHUNK_SIZE', '50'))
 DATE_FORMAT = os.getenv('DATE_FORMAT', '%Y%m%d_%H%M%S')
+INPUT_FILE_PATTERN = os.getenv('INPUT_FILE_PATTERN', '*.csv')
 OUTPUT_FILE_PATTERN = os.getenv('OUTPUT_FILE_PATTERN', 'property_data_%Y%m%d_%H%M%S.csv')
+
+# Required input CSV columns
+REQUIRED_INPUT_COLUMNS = [
+    'civic_number',
+    'street_name',
+    'postal_code'
+]
 
 # Output schema - defines the columns in the output CSV
 OUTPUT_COLUMNS = [

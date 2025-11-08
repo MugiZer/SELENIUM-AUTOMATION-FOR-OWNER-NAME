@@ -8,9 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 interface EnvConfig {
-  // Google OAuth
-  GOOGLE_CLIENT_ID: string;
-  GOOGLE_CLIENT_SECRET: string;
+  // Server Configuration
   SESSION_SECRET: string;
   NODE_ENV: 'development' | 'production';
   PORT: string;
@@ -20,13 +18,16 @@ interface EnvConfig {
   // Scraper Config
   MONTREAL_EMAIL: string;
   MONTREAL_PASSWORD: string;
-  GOOGLE_SERVICE_ACCOUNT_JSON: string;
-  SHEET_NAME: string;
-  SHEET_TAB: string;
   DELAY_MIN: string;
   DELAY_MAX: string;
   CACHE_PATH: string;
   LOG_LEVEL: string;
+  
+  // File Paths
+  INPUT_DIR: string;
+  OUTPUT_DIR: string;
+  LOG_DIR: string;
+  BACKUP_DIR: string;
 }
 
 const rl = createInterface({
@@ -75,19 +76,6 @@ const setup = async () => {
     });
   }
 
-  // Google OAuth Section
-  console.log('\n🔐 Google OAuth Configuration');
-  console.log('----------------------------');
-  const googleClientId = await question(
-    'Google OAuth Client ID',
-    existingConfig.GOOGLE_CLIENT_ID || '577270563274-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com'
-  );
-
-  const googleClientSecret = await question(
-    'Google OAuth Client Secret',
-    existingConfig.GOOGLE_CLIENT_SECRET || 'GOCSPX-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-  );
-
   // Scraper Configuration Section
   console.log('\n🛠️  Scraper Configuration');
   console.log('----------------------');
@@ -101,16 +89,6 @@ const setup = async () => {
     existingConfig.MONTREAL_PASSWORD || ''
   );
 
-  const sheetName = await question(
-    'Google Sheet Name',
-    existingConfig.SHEET_NAME || 'Property Data'
-  );
-
-  const sheetTab = await question(
-    'Google Sheet Tab Name',
-    existingConfig.SHEET_TAB || 'Sheet1'
-  );
-
   // Generate default values for missing required fields
   const sessionSecret = existingConfig.SESSION_SECRET || generateSessionSecret();
   const nodeEnv = existingConfig.NODE_ENV || 'development';
@@ -119,13 +97,15 @@ const setup = async () => {
   const apiBaseUrl = existingConfig.VITE_API_BASE_URL || 'http://localhost:3000';
   const delayMin = existingConfig.DELAY_MIN || '1.5';
   const delayMax = existingConfig.DELAY_MAX || '3.0';
-  const cachePath = existingConfig.CACHE_PATH || 'cache.sqlite';
+  const cachePath = existingConfig.CACHE_PATH || 'cache';
   const logLevel = existingConfig.LOG_LEVEL || 'INFO';
+  const inputDir = existingConfig.INPUT_DIR || 'input';
+  const outputDir = existingConfig.OUTPUT_DIR || 'output';
+  const logDir = existingConfig.LOG_DIR || 'logs';
+  const backupDir = existingConfig.BACKUP_DIR || 'backups';
 
   // Generate .env content
-  const envContent = `# Google OAuth for Web UI
-GOOGLE_CLIENT_ID=${googleClientId}
-GOOGLE_CLIENT_SECRET=${googleClientSecret}
+  const envContent = `# Server Configuration
 SESSION_SECRET=${sessionSecret}
 NODE_ENV=${nodeEnv}
 PORT=${port}
@@ -135,13 +115,16 @@ VITE_API_BASE_URL=${apiBaseUrl}
 # Montreal role scraper configuration
 MONTREAL_EMAIL=${montrealEmail}
 MONTREAL_PASSWORD=${montrealPassword}
-GOOGLE_SERVICE_ACCOUNT_JSON=${existingConfig.GOOGLE_SERVICE_ACCOUNT_JSON || ''}
-SHEET_NAME=${sheetName}
-SHEET_TAB=${sheetTab}
 DELAY_MIN=${delayMin}
 DELAY_MAX=${delayMax}
 CACHE_PATH=${cachePath}
 LOG_LEVEL=${logLevel}
+
+# File paths
+INPUT_DIR=${inputDir}
+OUTPUT_DIR=${outputDir}
+LOG_DIR=${logDir}
+BACKUP_DIR=${backupDir}
 `;
 
   // Ensure scripts directory exists
