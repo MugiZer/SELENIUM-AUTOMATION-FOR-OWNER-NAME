@@ -11,18 +11,25 @@
       "config": { "distDir": "dist" }
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "/server.js"
+      "source": "/api/:path*",
+      "destination": "/server.js"
     },
     {
-      "src": "/assets/(.*)",
-      "dest": "/simple_ui/dist/assets/$1"
-    },
+      "source": "/(.*)",
+      "destination": "/simple_ui/dist/index.html"
+    }
+  ],
+  "headers": [
     {
-      "src": "/(.*)",
-      "dest": "/simple_ui/dist/index.html"
+      "source": "/assets/:path*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
     }
   ],
   "env": {
@@ -30,5 +37,7 @@
   },
   "buildCommand": "npm run vercel-build",
   "installCommand": "npm install --prefer-offline",
-  "outputDirectory": "simple_ui/dist"
+  "outputDirectory": "simple_ui/dist",
+  "cleanUrls": true,
+  "trailingSlash": false
 }

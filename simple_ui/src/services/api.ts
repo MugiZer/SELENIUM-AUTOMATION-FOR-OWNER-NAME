@@ -1,32 +1,32 @@
 import { PropertyData, ApiResponse, UploadResponse } from '../types';
 
+// Use the environment variable or fallback to development server
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+
+// Helper function to handle API responses
+async function handleResponse<T>(response: Response): Promise<T> {
+  const data = await response.json().catch(() => ({}));
+  
+  if (!response.ok) {
+    const error = (data && data.error) || response.statusText;
+    return Promise.reject(error);
+  }
+  
+  return data as T;
+}
 
 const api = {
   async uploadCsv(file: File): Promise<ApiResponse<UploadResponse>> {
     const formData = new FormData();
     formData.append('file', file);
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/upload`, {
-        method: 'POST',
-        credentials: 'include',
-        body: formData,
-      });
+    const response = await fetch(`${API_BASE_URL}/api/upload`, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to upload file');
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Upload error:', error);
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Failed to upload file' 
-      };
-    }
+    return handleResponse<ApiResponse<UploadResponse>>(response);
   },
 
   async getPropertyData(): Promise<ApiResponse<PropertyData[]>> {
@@ -34,12 +34,7 @@ const api = {
       const response = await fetch(`${API_BASE_URL}/api/properties`, {
         credentials: 'include',
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch property data');
-      }
-
-      return await response.json();
+      return await handleResponse<ApiResponse<PropertyData[]>>(response);
     } catch (error) {
       console.error('Fetch error:', error);
       return { 
@@ -54,11 +49,11 @@ const api = {
       const response = await fetch(`${API_BASE_URL}/api/download/${filename}`, {
         credentials: 'include',
       });
-
+      
       if (!response.ok) {
         throw new Error('Failed to download file');
       }
-
+      
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -67,12 +62,12 @@ const api = {
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
-      a.remove();
+      document.body.removeChild(a);
     } catch (error) {
       console.error('Download error:', error);
       throw error;
     }
-  },
+  }
 };
 
 export default api;
