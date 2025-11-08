@@ -6,8 +6,9 @@
       "use": "@vercel/node"
     },
     {
-      "src": "simple_ui/dist/**",
-      "use": "@vercel/static"
+      "src": "simple_ui/package.json",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "dist" }
     }
   ],
   "routes": [
