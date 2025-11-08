@@ -18,12 +18,18 @@
     },
     {
       "src": "/assets/(.*)",
-      "dest": "/simple_ui/dist/assets/$1"
+      "dest": "/simple_ui/dist/assets/$1",
+      "headers": {
+        "cache-control": "public, max-age=31536000, immutable"
+      }
     },
     {
       "src": "/(.*)",
       "dest": "/simple_ui/dist/index.html"
     }
+  ],
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/simple_ui/dist/index.html" }
   ],
   "env": {
     "NODE_ENV": "production"
