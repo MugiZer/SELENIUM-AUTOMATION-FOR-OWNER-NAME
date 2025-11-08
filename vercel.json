@@ -16,11 +16,12 @@
       "dest": "/server.js"
     },
     {
+      "src": "/assets/(.*)",
+      "dest": "/simple_ui/dist/assets/$1"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/simple_ui/dist/$1",
-      "headers": {
-        "Cache-Control": "public, max-age=0, must-revalidate"
-      }
+      "dest": "/simple_ui/dist/index.html"
     }
   ],
   "env": {
