@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "vercel-build": "npm run build && npm run verify-build",
+    "verify-build": "node -e \"const fs = require('fs'); if (!fs.existsSync('dist/index.html')) { console.error('❌ Build failed: index.html not found!'); process.exit(1); } else { console.log('✅ Build verification passed'); }\""
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

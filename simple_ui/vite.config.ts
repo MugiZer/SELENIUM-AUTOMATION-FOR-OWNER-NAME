@@ -12,19 +12,6 @@ export default defineConfig(({ mode }) => {
     // Always use root-relative paths for Vercel
     base: '/',
     plugins: [react()],
-    build: {
-      outDir: 'dist',
-      emptyOutDir: true,
-      sourcemap: isDev,
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            vendor: ['react', 'react-dom', 'react-router-dom'],
-            mui: ['@mui/material', '@mui/icons-material', '@emotion/react', '@emotion/styled']
-          }
-        }
-      }
-    },
     define: {
       'import.meta.env.BASE_URL': JSON.stringify('/'),
       'import.meta.env.API_BASE_URL': JSON.stringify(env.VITE_API_BASE_URL || 'http://localhost:3000')
@@ -49,23 +36,15 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'dist',
       emptyOutDir: true,
-      sourcemap: true,
+      sourcemap: isDev,
       rollupOptions: {
         output: {
-          manualChunks: {
-            // Split vendor and app code
-            vendor: ['react', 'react-dom']
-          },
-          // Ensure consistent hashing for better caching
           entryFileNames: 'assets/[name].[hash].js',
           chunkFileNames: 'assets/[name].[hash].js',
-          assetFileNames: 'assets/[name].[hash][extname]',
-          // Ensure absolute paths for all assets
-          paths: (id: string): string => {
-            if (id.includes('node_modules')) {
-              return id;
-            }
-            return `/${id}`;
+          assetFileNames: 'assets/[name].[hash].[ext]',
+          manualChunks: {
+            vendor: ['react', 'react-dom', 'react-router-dom'],
+            mui: ['@mui/material', '@mui/icons-material', '@emotion/react', '@emotion/styled']
           }
         }
       }
