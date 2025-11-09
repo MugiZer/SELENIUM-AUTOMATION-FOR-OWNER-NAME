@@ -12,8 +12,21 @@ export default defineConfig(({ mode }) => {
     // Always use root-relative paths for Vercel
     base: '/',
     plugins: [react()],
+    build: {
+      outDir: 'dist',
+      emptyOutDir: true,
+      sourcemap: isDev,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            vendor: ['react', 'react-dom', 'react-router-dom'],
+            mui: ['@mui/material', '@mui/icons-material', '@emotion/react', '@emotion/styled']
+          }
+        }
+      }
+    },
     define: {
-      'import.meta.env.BASE_URL': JSON.stringify(mode === 'production' ? '/simple_ui/dist/' : '/'),
+      'import.meta.env.BASE_URL': JSON.stringify('/'),
       'import.meta.env.API_BASE_URL': JSON.stringify(env.VITE_API_BASE_URL || 'http://localhost:3000')
     },
     server: {

@@ -8,9 +8,8 @@
     {
       "src": "simple_ui/package.json",
       "use": "@vercel/static-build",
-      "config": { 
-        "distDir": "dist",
-        "outputDirectory": "dist"
+      "config": {
+        "distDir": "dist"
       }
     }
   ],
@@ -29,7 +28,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "/simple_ui/dist/index.html"
+      "dest": "/dist/index.html"
     }
   ],
   "headers": [
