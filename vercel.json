@@ -14,20 +14,18 @@
       }
     }
   ],
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/server.js" },
-    { "source": "/(.*)", "destination": "/index.html" }
+  "routes": [
+    {
+      "src": "/api/(?<path>.*)",
+      "dest": "/server.js"
+    },
+    {
+      "src": "/(.*)",
+      "status": 200,
+      "dest": "/index.html"
+    }
   ],
   "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" },
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "X-XSS-Protection", "value": "1; mode=block" }
-      ]
-    },
     {
       "source": "/_next/static/(.*)",
       "headers": [
@@ -37,17 +35,8 @@
     {
       "source": "/static/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" },
-        { "key": "Access-Control-Allow-Origin", "value": "*" }
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  },
-  "buildCommand": "cd simple_ui && npm ci && npm run build",
-  "outputDirectory": "simple_ui/dist",
-  "cleanUrls": true,
-  "trailingSlash": false,
-  "regions": ["iad1"]
+  ]
 }
