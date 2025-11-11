@@ -32,6 +32,11 @@ const checks = [
     name: 'Build Config',
     script: 'node scripts/validate-build-config.cjs',
     critical: true
+  },
+  {
+    name: 'Routing/404 Prevention',
+    script: 'node scripts/validate-routing-404.cjs',
+    critical: true
   }
 ];
 
