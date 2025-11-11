@@ -1,8 +1,0 @@
-playwright
-pandas
-gspread
-google-auth
-python-dotenv
-tenacity
-rich
-selectolax
