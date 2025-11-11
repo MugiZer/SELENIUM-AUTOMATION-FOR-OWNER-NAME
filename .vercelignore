@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+.sass-cache/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Build outputs
+.next/
+out/
+build/
+.vercel_builds/
+
+# Local development
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE and editor files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Test and coverage directories
+coverage/
+.nyc_output/
+
+# Misc
+.vercel
+.vercel_builds
+.cache
+.temp
+.tmp
