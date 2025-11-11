@@ -16,20 +16,21 @@
 2. **Never use floating Node versions in `package.json`**
    ```json
    // ❌ WRONG - causes auto-upgrades
-   "engines": { "node": ">=18" }
-   "engines": { "node": "^18" }
+   "engines": { "node": ">=22" }
+   "engines": { "node": "^22" }
    
    // ✅ CORRECT - pinned LTS
-   "engines": { "node": "18.x" }
+   "engines": { "node": "22.x" }
    ```
 
-3. **Never use @vercel/node v4+**
+3. **Never use @vercel/node v4 or lower**
    ```json
-   // ❌ WRONG - ETARGET error (doesn't exist)
+   // ❌ WRONG - doesn't support Node 22
+   "@vercel/node": "^3.0.0"
    "@vercel/node": "^4.0.0"
    
-   // ✅ CORRECT - stable v3
-   "@vercel/node": "^3.0.27"
+   // ✅ CORRECT - supports Node 22
+   "@vercel/node": "^5.5.5"
    ```
 
 ## ✅ MUST DO
@@ -56,7 +57,8 @@ npm run validate  # Runs all 5 critical checks
 ---
 
 **Current Config** (verified clean):
-- ✅ Node: `18.x` (pinned LTS)
-- ✅ @vercel/node: `^3.0.27` (stable)
+- ✅ Node: `22.x` (pinned LTS, required by Vercel)
+- ✅ @vercel/node: `^5.5.5` (Node 22 compatible)
+- ✅ @vercel/static-build: `^2.8.5` (Node 22 compatible)
 - ✅ Routing: Modern `rewrites` only (no legacy `routes`)
 
