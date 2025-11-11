@@ -34,11 +34,17 @@ vercelPackages.forEach(([name, version]) => {
     hasIssues = true;
   }
   
-  // Check for major version 4+ on @vercel/node (ETARGET issues)
-  if (name === '@vercel/node' && /[\^~]?4/.test(version)) {
-    console.error(`❌ ${name}: Version 4.x may not exist or be unstable`);
-    console.error(`   Recommendation: Use ^3.x (latest stable major)`);
-    hasIssues = true;
+  // Check for outdated @vercel/node (Node 22 requires v5+)
+  if (name === '@vercel/node') {
+    const majorMatch = version.match(/[\^~]?(\d+)/);
+    if (majorMatch) {
+      const major = parseInt(majorMatch[1]);
+      if (major < 5) {
+        console.error(`❌ ${name}: Version ${major}.x does not support Node 22`);
+        console.error(`   Recommendation: Use ^5.x (supports Node 22)`);
+        hasIssues = true;
+      }
+    }
   }
   
   // Check for loose ranges

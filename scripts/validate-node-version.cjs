@@ -35,11 +35,16 @@ if (isFloating) {
 }
 
 // Check if it's a supported LTS
-const ltsVersions = ['18.x', '20.x', '22.x'];
+const ltsVersions = ['22.x'];  // Vercel now requires Node 22.x
+const deprecatedVersions = ['18.x', '20.x'];  // Discontinued on Vercel
+
 if (ltsVersions.includes(nodeVersion)) {
-  console.log(`✅ Using supported LTS version: ${nodeVersion}`);
+  console.log(`✅ Using required Node version: ${nodeVersion}`);
+} else if (deprecatedVersions.includes(nodeVersion)) {
+  console.error(`❌ Node ${nodeVersion} is discontinued on Vercel. Required: 22.x`);
+  hasIssues = true;
 } else if (/^\d+\.x$/.test(nodeVersion)) {
-  console.warn(`⚠️  Version ${nodeVersion} may not be LTS. Supported: ${ltsVersions.join(', ')}`);
+  console.warn(`⚠️  Version ${nodeVersion} may not be supported. Required: 22.x`);
 } else {
   console.log(`ℹ️  Specific version: ${nodeVersion}`);
 }
