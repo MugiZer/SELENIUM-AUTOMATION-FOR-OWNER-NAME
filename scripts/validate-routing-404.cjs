@@ -16,7 +16,7 @@ if (staticBuild) {
   // Check for conflicting root rewrites
   if (vercelJson.rewrites) {
     const rootRewrites = vercelJson.rewrites.filter(r => 
-      r.source === '/(.*' || r.source === '/*' || r.source === '/'
+      r.source === '/(.*' || r.source === '/(*)' || r.source === '/*' || r.source === '/(.*)' || r.source === '/'
     );
     
     if (rootRewrites.length > 0) {
@@ -64,11 +64,51 @@ if (staticBuild) {
     console.warn(`⚠️  Build output not found: ${indexPath}`);
     console.warn(`   Run 'npm run build' to generate it`);
   }
+  
+  // Check for SPA fallback configuration
+  console.log('\n🔄 Checking SPA fallback configuration...');
+  
+  if (vercelJson.rewrites) {
+    const spaFallback = vercelJson.rewrites.find(r => 
+      (r.source === '/(.*' || r.source === '/(*)' || r.source === '/*' || r.source === '/(.*)') && 
+      (r.destination === '/index.html' || r.destination === '/')
+    );
+    
+    const apiRewrite = vercelJson.rewrites.find(r => 
+      r.source.includes('/api/')
+    );
+    
+    if (!spaFallback) {
+      console.error(`❌ Missing SPA fallback rewrite!`);
+      console.error(`   Client-side routes will 404 on refresh`);
+      console.error(`   Add: {"source": "/(.*)", "destination": "/index.html"}`);
+      hasIssues = true;
+    } else {
+      console.log(`✅ SPA fallback configured: ${spaFallback.source} → ${spaFallback.destination}`);
+      
+      // Ensure API rewrites come BEFORE SPA fallback
+      if (apiRewrite && spaFallback) {
+        const apiIndex = vercelJson.rewrites.indexOf(apiRewrite);
+        const spaIndex = vercelJson.rewrites.indexOf(spaFallback);
+        
+        if (apiIndex > spaIndex) {
+          console.error(`❌ Rewrite order issue: API rewrite must come BEFORE SPA fallback`);
+          console.error(`   Current order will intercept API calls with index.html`);
+          hasIssues = true;
+        } else {
+          console.log(`✅ Rewrite order correct: API routes protected from SPA fallback`);
+        }
+      }
+    }
+  } else {
+    console.error(`❌ No rewrites array found - SPA routing will not work`);
+    hasIssues = true;
+  }
 }
 
 // Check for legacy routes key
 if (vercelJson.routes) {
-  console.error(`❌ Legacy 'routes' key detected`);
+  console.error(`\n❌ Legacy 'routes' key detected`);
   console.error(`   Use 'rewrites', 'redirects', 'headers' instead`);
   hasIssues = true;
 }
