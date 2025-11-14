@@ -1,14 +1,8 @@
 import dotenv from 'dotenv';
 import express from 'express';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
 import cors from 'cors';
 import 'dotenv/config';
 import routes from './routes/index.js';
-
-// Get directory name in ES module
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 const app = express();
 
@@ -49,25 +43,9 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Serve static files from Vercel's output directory
-const staticPath = join(__dirname, 'simple_ui', 'dist');
-const staticOptions = {
-  maxAge: '1y',
-  etag: true,
-  lastModified: true,
-  setHeaders: (res, path) => {
-    if (path.endsWith('.html')) {
-      res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
-    }
-  }
-};
-
-app.use(express.static(staticPath, staticOptions));
-
-// Handle SPA routing - serve index.html for all other routes
-app.get('*', (req, res) => {
-  res.sendFile(join(staticPath, 'index.html'));
-});
+// Note: In Vercel production, static files are served by the CDN layer.
+// SPA routing is handled by vercel.json rewrites.
+// This function only handles API routes.
 
 // 404 handler
 app.use((req, res) => {
@@ -89,7 +67,7 @@ app.use((err, req, res, next) => {
 });
 
 // Export the Express API for Vercel
-module.exports = app;
+export default app;
 
 // Only start the server if not in a Vercel environment
 if (!process.env.VERCEL) {
@@ -97,7 +75,6 @@ if (!process.env.VERCEL) {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`Static files served from: ${staticPath}`);
   });
 }
 

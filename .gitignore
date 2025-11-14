@@ -48,3 +48,4 @@ tmp/
 # Lockfiles (keep only npm)
 yarn.lock
 pnpm-lock.yaml
+.vercel
