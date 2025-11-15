@@ -9,7 +9,7 @@ const app = express();
 // Enable CORS with proper configuration
 app.use(cors({
   origin: process.env.VERCEL_ENV === 'production'
-    ? process.env.PRODUCTION_URL || 'https://your-production-url.vercel.app'
+    ? process.env.VERCEL_URL || true  // Allow all origins in production for now
     : process.env.CORS_ORIGIN || 'http://localhost:3000',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true,
