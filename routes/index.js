@@ -8,12 +8,12 @@ const router = Router();
 
 // API Routes
 router.use('/auth', authRoutes);
-router.use('/api/properties', propertyRoutes);
-router.use('/api/upload', uploadRoutes);
+router.use('/properties', propertyRoutes);
+router.use('/upload', uploadRoutes);
 router.use('/health', healthRoutes);
 
 // 404 handler for /api/* routes
-router.use('/api/*', (req, res) => {
+router.use('*', (req, res) => {
   res.status(404).json({
     success: false,
     error: 'Route not found',
