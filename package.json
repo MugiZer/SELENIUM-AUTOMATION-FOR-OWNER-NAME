@@ -21,7 +21,7 @@
     "validate:node": "node scripts/validate-node-version.cjs",
     "validate:packages": "node scripts/validate-vercel-packages.cjs",
     "validate:build": "node scripts/validate-build-config.cjs",
-    "validate:routing": "node scripts/validate-routing-404.cjs",
+    "validate:routing": "node scripts/validate-routing.cjs",
     "test:routing": "node scripts/test-routing-404.cjs",
     "precommit": "node scripts/pre-commit-check.cjs"
   },

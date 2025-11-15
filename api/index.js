@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
 import 'dotenv/config';
-import routes from './routes/index.js';
+import routes from '../routes/index.js';
 
 const app = express();
 
@@ -29,11 +29,11 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// API Routes
-app.use('/api', routes);
+// API Routes - mounted at root since Vercel auto-mounts this under /api/*
+app.use('/', routes);
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
+app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
@@ -56,11 +56,11 @@ app.use((req, res) => {
 app.use((err, req, res, next) => {
   console.error('Error:', err);
   const statusCode = err.statusCode || 500;
-  const message = process.env.NODE_ENV === 'production' 
-    ? 'Internal Server Error' 
+  const message = process.env.NODE_ENV === 'production'
+    ? 'Internal Server Error'
     : err.message || 'Something went wrong!';
-  
-  res.status(statusCode).json({ 
+
+  res.status(statusCode).json({
     error: message,
     ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
   });
@@ -77,4 +77,3 @@ if (!process.env.VERCEL) {
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   });
 }
-
