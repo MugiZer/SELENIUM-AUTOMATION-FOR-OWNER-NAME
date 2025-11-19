@@ -4,13 +4,13 @@
   "private": true,
   "description": "Selenium Automation with React UI",
   "type": "module",
-  "main": "server.js",
+  "exports": "./api/index.js",
   "engines": {
     "node": "22.x"
   },
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
+    "start": "node api/index.js",
+    "dev": "nodemon api/index.js",
     "build": "cd simple_ui && npm run build",
     "build:ui": "cd simple_ui && npm ci && npm run build",
     "vercel-build": "npm install --omit=dev && npm run build:ui",
