@@ -1,31 +1,29 @@
-import { UnauthorizedError } from '../utils/errors.js';
+import jwt from 'jsonwebtoken';
 
 export const isAuthenticated = (req, res, next) => {
-  // Check if user is authenticated
-  // In a real app, verify JWT token or session
-  if (req.session?.userId) {
-    // Add user to request object for use in route handlers
-    req.user = {
-      id: req.session.userId,
-      // Add other user properties as needed
-    };
-    return next();
-  }
-  
-  // If not authenticated, return 401 Unauthorized
-  throw new UnauthorizedError('Authentication required');
-};
+  try {
+    // 1. Get token from header
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: 'No token provided'
+      });
+    }
 
-export const hasRole = (roles = []) => {
-  return (req, res, next) => {
-    if (!req.user) {
-      throw new UnauthorizedError('Authentication required');
-    }
+    // 2. Verify token
+    // Use environment variable or fallback for development
+    const secret = process.env.JWT_SECRET || 'dev-secret-key-change-me';
+    const decoded = jwt.verify(token, secret);
     
-    if (roles.length && !roles.includes(req.user.role)) {
-      throw new ForbiddenError('Insufficient permissions');
-    }
-    
+    // 3. Attach user to request
+    req.user = decoded;
     next();
-  };
+  } catch (error) {
+    return res.status(401).json({
+      success: false,
+      error: 'Invalid or expired token'
+    });
+  }
 };

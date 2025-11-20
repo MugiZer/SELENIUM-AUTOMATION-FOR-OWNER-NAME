@@ -28,7 +28,7 @@ const upload = multer({
 // File upload endpoint
 router.post(
   '/',
-  isAuthenticated,
+  /* isAuthenticated, */
   upload.single('file'),
   async (req, res) => {
     try {
