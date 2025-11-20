@@ -13,8 +13,7 @@ export default defineConfig(({ mode }) => {
     base: '/',
     plugins: [react()],
     define: {
-      'import.meta.env.BASE_URL': JSON.stringify('/'),
-      'import.meta.env.API_BASE_URL': JSON.stringify(env.VITE_API_BASE_URL || 'http://localhost:3000')
+      'import.meta.env.BASE_URL': JSON.stringify('/')
     },
     server: {
       port: 5173,
