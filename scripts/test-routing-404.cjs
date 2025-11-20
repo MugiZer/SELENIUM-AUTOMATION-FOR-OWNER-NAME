@@ -299,7 +299,7 @@ const testRoutes = [
   { path: '/dashboard', expected: 'index.html', type: 'SPA deep link' },
   { path: '/users/123', expected: 'index.html', type: 'SPA deep link' },
   { path: '/assets/index.BeyKAiJ4.js', expected: 'file', type: 'Static asset' },
-  { path: '/api/health', expected: 'server.js', type: 'API endpoint' },
+  { path: '/api/health', expected: 'api/index.js', type: 'API endpoint' },
 ];
 
 testRoutes.forEach(route => {
@@ -314,9 +314,9 @@ testRoutes.forEach(route => {
     const assetFile = path.join(assetsPath, assetName);
     wouldWork = fs.existsSync(assetFile);
     reason = wouldWork ? `Asset exists: ${assetName}` : `Asset missing: ${assetName}`;
-  } else if (route.expected === 'server.js') {
-    wouldWork = fs.existsSync('server.js');
-    reason = wouldWork ? 'server.js exists, API rewrite will route to it' : 'server.js missing';
+  } else if (route.expected === 'api/index.js') {
+    wouldWork = fs.existsSync('api/index.js');
+    reason = wouldWork ? 'api/index.js exists, API rewrite will route to it' : 'api/index.js missing';
   }
   
   test(
