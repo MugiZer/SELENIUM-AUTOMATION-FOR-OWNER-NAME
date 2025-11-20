@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const VERCEL_JSON_PATH = path.join(__dirname, '..', 'vercel.json');
-const ROUTES_INDEX_PATH = path.join(__dirname, '..', 'routes', 'index.js');
+const ROUTES_INDEX_PATH = path.join(__dirname, '..', 'api', 'routes', 'index.js');
 
 function validateRouting() {
   console.log('🔍 Validating Vercel routing configuration...\n');

@@ -8,7 +8,7 @@ const router = Router();
 // Get all properties with optional pagination
 router.get(
   '/',
-  isAuthenticated,
+  /* isAuthenticated, */
   [
     query('page').optional().isInt({ min: 1 }).toInt(),
     query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
@@ -43,7 +43,7 @@ router.get(
 // Get single property by ID
 router.get(
   '/:id',
-  isAuthenticated,
+  /* isAuthenticated, */
   async (req, res) => {
     try {
       const { id } = req.params;
