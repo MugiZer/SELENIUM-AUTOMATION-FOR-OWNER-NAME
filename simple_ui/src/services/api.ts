@@ -1,7 +1,7 @@
 import { PropertyData, ApiResponse, UploadResponse } from '../types';
 
-// Use the environment variable or fallback to development server
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+// Use relative path by default (works for both proxy in dev and same-domain in prod)
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 // Helper function to handle API responses
 async function handleResponse<T>(response: Response): Promise<T> {

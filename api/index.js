@@ -31,10 +31,8 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ============ ROUTES ============
-// CRITICAL: Routes mounted at "/" because Vercel STRIPS the "/api" prefix
-// Example: Frontend calls /api/health
-//          Vercel function receives: GET /health
-//          routes are at /, so router.use('/health', ...) will match
+// CRITICAL: Mount at both /api and / to handle Vercel routing behavior robustly
+app.use('/api', routes);
 app.use('/', routes);
 
 // ============ 404 HANDLER ============
