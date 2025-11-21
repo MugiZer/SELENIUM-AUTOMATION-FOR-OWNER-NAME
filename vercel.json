@@ -9,7 +9,7 @@
       "src": "simple_ui/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "dist"
+        "distDir": "simple_ui/dist"
       }
     }
   ],
