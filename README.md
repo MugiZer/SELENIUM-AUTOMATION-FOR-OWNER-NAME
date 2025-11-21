@@ -174,6 +174,15 @@ pytest
 - **429 or 5xx responses**: the scraper retries automatically with exponential backoff
 - **Borough mismatches**: verify borough names match the canonical list exactly; typos may cause address matching issues
 
+## Vercel Deployment
+
+The frontend React app is deployed on Vercel with the following configuration:
+- **Static Build**: Vite builds to `simple_ui/dist/` and assets are served from `/assets/*`
+- **API Routes**: Express API is deployed as serverless functions under `/api/*`
+- **SPA Routing**: All non-API routes fallback to `index.html` for client-side routing
+
+If you encounter 404 errors on static assets after deployment, clear Vercel's build cache and redeploy to ensure fresh asset hashes are generated.
+
 ## Appendix: DevTools Data (verbatim)
 
 The following section is reproduced verbatim from the project brief to ensure selector fidelity.
