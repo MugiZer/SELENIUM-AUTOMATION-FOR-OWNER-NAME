@@ -1,46 +1,44 @@
 {
   "name": "selenium-automation-for-owner-name",
-  "version": "1.0.1",
   "private": true,
-  "description": "Selenium Automation with React UI",
+  "version": "1.0.2",
   "type": "module",
-  "exports": "./api/index.js",
   "engines": {
     "node": "22.x"
   },
   "scripts": {
-    "start": "node api/index.js",
-    "dev": "nodemon api/index.js",
-    "build": "cd simple_ui && npm run build",
-    "build:ui": "cd simple_ui && npm ci && npm run build",
-    "vercel-build": "npm install --omit=dev && npm run build:ui",
-    "deploy": "npm run validate && vercel --prod",
-    "validate": "node scripts/validate-all.cjs",
-    "validate:json": "node scripts/validate-json.cjs",
-    "validate:vercel": "node scripts/validate-vercel-schema.cjs",
-    "validate:node": "node scripts/validate-node-version.cjs",
-    "validate:packages": "node scripts/validate-vercel-packages.cjs",
-    "validate:build": "node scripts/validate-build-config.cjs",
-    "validate:routing": "node scripts/validate-routing.cjs",
-    "test:routing": "node scripts/test-routing-404.cjs",
-    "precommit": "node scripts/pre-commit-check.cjs"
+    "dev": "vite",
+    "dev:api": "nodemon api/index.js",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "start": "node api/index.js"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^7.3.5",
+    "@mui/material": "^7.3.5",
+    "@types/react-dropzone": "^4.2.2",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.18.2",
     "express-validator": "^7.3.0",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^2.0.2"
+    "multer": "^2.0.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-dropzone": "^14.3.8",
+    "react-router-dom": "^7.9.5"
   },
   "devDependencies": {
-    "@vercel/node": "^5.5.5",
-    "@vercel/static-build": "^2.8.5",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
-    "@types/node": "^22.0.0",
+    "@types/node": "^24.10.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.2.0",
     "nodemon": "^3.0.2",
-    "vercel": "^32.2.5"
-  },
-  "packageManager": "npm@10.2.3"
+    "typescript": "^5.0.0",
+    "vite": "^5.0.0"
+  }
 }
