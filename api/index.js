@@ -1,7 +1,12 @@
 import express from 'express';
 import cors from 'cors';
 import 'dotenv/config';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import routes from './routes/index.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -33,17 +38,16 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // ============ ROUTES ============
 // CRITICAL: Mount at both /api and / to handle Vercel routing behavior robustly
 app.use('/api', routes);
-app.use('/', routes);
+// app.use('/', routes); // Removed root mount to allow SPA fallback at root
 
-// ============ 404 HANDLER ============
-// Catches any request that didn't match routes
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    error: 'Route not found',
-    path: req.originalUrl,
-    method: req.method
-  });
+// ============ STATIC FILES (Production/Preview) ============
+// Serve static files from the React app build directory
+app.use(express.static(path.join(__dirname, '../dist')));
+
+// ============ SPA FALLBACK ============
+// Handle client-side routing by serving index.html for all non-API routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
 // ============ ERROR HANDLER ============
