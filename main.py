@@ -145,7 +145,7 @@ def main() -> None:
     
     try:
         # Initialize browser and scraper
-        with launch_browser(headless=args.headless) as (browser, context):
+        with launch_browser(headless=args.headless) as (playwright, browser, context):
             page = new_page(context)
             
             # Initialize scraper
