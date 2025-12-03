@@ -14,8 +14,8 @@ const app = express();
 
 // Enable CORS with proper configuration
 app.use(cors({
-  origin: process.env.VERCEL_ENV === 'production'
-    ? process.env.VERCEL_URL || true  // Allow all origins in production for now
+  origin: process.env.NODE_ENV === 'production'
+    ? true  // Allow all origins in production
     : process.env.CORS_ORIGIN || 'http://localhost:3000',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true,
@@ -36,7 +36,6 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ============ ROUTES ============
-// CRITICAL: Mount at both /api and / to handle Vercel routing behavior robustly
 app.use('/api', routes);
 // app.use('/', routes); // Removed root mount to allow SPA fallback at root
 
@@ -66,14 +65,9 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Export the Express API for Vercel
-export default app;
-
-// Only start the server if not in a Vercel environment
-if (!process.env.VERCEL) {
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  });
-}
+// Start the server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+});
