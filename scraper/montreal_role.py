@@ -25,10 +25,15 @@ class AddressQuery:
     civic_number: str
     street_name: str
     raw_address: str
+    neighborhood: Optional[str] = None  # NO_ARROND_ILE_CUM from CSV
 
     @property
     def cache_key(self) -> str:
-        return normalize_key(self.civic_number, self.street_name or self.raw_address)
+        # Include neighborhood in cache key to differentiate same address in different boroughs
+        base_key = normalize_key(self.civic_number, self.street_name or self.raw_address)
+        if self.neighborhood:
+            return f"{base_key}_{normalize_key(self.neighborhood, '')}"
+        return base_key
 
 
 class MontrealRoleScraper:
@@ -247,11 +252,31 @@ class MontrealRoleScraper:
         suggestions = payload.get("data") or payload
         if not suggestions:
             return {}
-        normalized_target = _normalize(query.street_name)
+        
+        # Normalize target street and neighborhood for matching
+        normalized_street = _normalize(query.street_name)
+        normalized_neighborhood = _normalize(query.neighborhood) if query.neighborhood else None
+        
+        # If neighborhood provided, find suggestion matching both street AND neighborhood
+        if normalized_neighborhood:
+            logger.debug(f"Filtering suggestions by neighborhood: {query.neighborhood}")
+            for suggestion in suggestions:
+                display = suggestion.get("displayName") or suggestion.get("fullStreetName") or ""
+                normalized_display = _normalize(display)
+                # Check if neighborhood appears in the display name
+                if normalized_neighborhood in normalized_display:
+                    logger.info(f"Matched suggestion by neighborhood: {display}")
+                    return suggestion
+            # If no neighborhood match, log warning but continue with fallback
+            logger.warning(f"No suggestion matched neighborhood '{query.neighborhood}', using first match")
+        
+        # Fallback: exact street name match
         for suggestion in suggestions:
             display = suggestion.get("displayName") or suggestion.get("fullStreetName") or ""
-            if _normalize(display) == normalized_target:
+            if _normalize(display) == normalized_street:
                 return suggestion
+        
+        # Last resort: return first suggestion
         return suggestions[0]
 
     def _on_login_page(self) -> bool:
@@ -320,6 +345,18 @@ def parse_input_row(row: Dict[str, str]) -> Optional[AddressQuery]:
     civic_number = clean_number(row.get("civicNumber") or row.get("civic_number"))
     street_name = (row.get("streetName") or row.get("street_name") or "").strip()
     raw_address = row.get("address") or row.get("Adresse") or ""
+    
+    # Extract neighborhood from various possible column names
+    neighborhood = (
+        row.get("NO_ARROND_ILE_CUM") or 
+        row.get("no_arrond_ile_cum") or 
+        row.get("neighborhood") or 
+        row.get("neighbourhood") or 
+        row.get("arrondissement") or 
+        row.get("borough") or 
+        ""
+    ).strip() or None
+    
     if not civic_number and raw_address:
         match = re.match(r"(\d+[a-zA-Z]?)\s+(.*)", raw_address)
         if match:
@@ -328,7 +365,12 @@ def parse_input_row(row: Dict[str, str]) -> Optional[AddressQuery]:
     street_name = street_name.strip()
     if not civic_number or not street_name:
         return None
-    return AddressQuery(civic_number=civic_number, street_name=street_name, raw_address=raw_address or f"{civic_number} {street_name}")
+    return AddressQuery(
+        civic_number=civic_number, 
+        street_name=street_name, 
+        raw_address=raw_address or f"{civic_number} {street_name}",
+        neighborhood=neighborhood
+    )
 
 
 def clean_number(value: Optional[str]) -> str:
