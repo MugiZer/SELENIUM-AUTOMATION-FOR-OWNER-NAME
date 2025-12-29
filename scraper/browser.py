@@ -7,6 +7,8 @@ from typing import Iterator, Optional
 
 from playwright.sync_api import Browser, BrowserContext, Page, Playwright, sync_playwright
 
+from scraper.selectors import TIMEOUTS
+
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -43,6 +45,15 @@ def add_stealth(context: BrowserContext) -> None:
 
 
 def new_page(context: BrowserContext) -> Page:
+    """
+    Create a new page with configured default timeout.
+
+    Args:
+        context: Browser context to create page in
+
+    Returns:
+        Configured page instance
+    """
     page = context.new_page()
-    page.set_default_timeout(10_000)
+    page.set_default_timeout(TIMEOUTS["default"])
     return page

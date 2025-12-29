@@ -8,11 +8,19 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from playwright.sync_api import Page, TimeoutError
+from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
 
 from .cache import Cache, normalize_key
 from .parsers import parse_result_json, parse_result_page
 from .rate import RateLimiter, retryable
+from .selectors import SELECTORS, TIMEOUTS, URL_PATTERNS
+from .element_finder import (
+    find_element_with_fallbacks,
+    fill_element_with_fallbacks,
+    click_element_with_fallbacks,
+    get_element_text_with_fallbacks,
+    ElementNotFoundError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +66,59 @@ class MontrealRoleScraper:
         if self.delay_after_actions:
             self.rate.sleep()
 
+    def validate_selectors(self) -> bool:
+        """
+        Validate that critical selectors are present on the search page.
+        Run this before batch processing to ensure selectors haven't changed.
+
+        Returns:
+            True if all selectors valid, False if any are broken
+        """
+        logger.info("Validating critical selectors...")
+
+        try:
+            # Navigate to search page
+            self.page.goto(BASE_URL, wait_until="load", timeout=TIMEOUTS["page_load"])
+        except Exception as e:
+            logger.error(f"Failed to navigate to search page: {type(e).__name__}: {e}")
+            return False
+
+        broken_selectors = []
+        validated_selectors = []
+
+        # Validate search form selectors
+        form_selectors = {
+            "civic_number": SELECTORS["search_form"]["civic_number"],
+            "street_name": SELECTORS["search_form"]["street_name_combobox"],
+            "submit_button": SELECTORS["search_form"]["submit_button"],
+        }
+
+        for field_name, selector_list in form_selectors.items():
+            found = False
+            for selector in selector_list:
+                try:
+                    count = self.page.locator(selector).count()
+                    if count > 0:
+                        found = True
+                        validated_selectors.append(f"search_form.{field_name}")
+                        logger.info(f"✓ search_form.{field_name}: Found with '{selector}'")
+                        break
+                except Exception:
+                    continue
+
+            if not found:
+                broken_selectors.append(f"search_form.{field_name}")
+                logger.error(f"✗ search_form.{field_name}: NOT FOUND with any selector")
+
+        # Report results
+        if broken_selectors:
+            logger.error(f"Selector validation FAILED. Broken selectors: {', '.join(broken_selectors)}")
+            logger.error("The website structure may have changed. Please update selectors.")
+            return False
+
+        logger.info(f"Selector validation PASSED. All {len(validated_selectors)} critical selectors are working.")
+        return True
+
     def fetch(self, query: AddressQuery) -> Dict[str, str]:
         cached = self.cache.get(query.cache_key)
         if cached:
@@ -79,8 +140,9 @@ class MontrealRoleScraper:
         attempted_login = False
         while True:
             try:
-                self.page.goto(BASE_URL, wait_until="load")
-            except TimeoutError:
+                self.page.goto(BASE_URL, wait_until="load", timeout=TIMEOUTS["page_load"])
+            except PlaywrightTimeoutError:
+                logger.warning("Page load timeout, reloading...")
                 self.page.reload()
             if self._on_login_page():
                 logger.info("Authentication wall detected during navigation; attempting login")
@@ -89,7 +151,9 @@ class MontrealRoleScraper:
                 attempted_login = True
                 continue
             self.sleep()
-            self._fill_form(query)
+            if not self._fill_form(query):
+                logger.error("Form filling failed")
+                return "error:form_fill_failed", {}
             self.sleep()
             status, result = self._select_address(query)
             if status == "auth_required":
@@ -104,91 +168,301 @@ class MontrealRoleScraper:
             final_data = self._parse_final_page()
             return "ok", final_data
 
-    def login(self, email: str, password: str) -> None:
-        logger.info("Attempting login")
-        self.page.goto("https://montreal.ca/", wait_until="load")
-        self.page.click("button#shell-login-button")
-        self.page.fill("input#signInName", email)
-        self.page.fill("input#password", password)
-        self.page.click("button#next")
-        self.page.wait_for_load_state("networkidle")
-        logger.info("Login flow completed")
+    def login(self, email: str, password: str) -> bool:
+        """
+        Perform login with robust error handling and fallback selectors.
 
-    def _fill_form(self, query: AddressQuery) -> None:
-        # Selectors sourced from the provided DevTools snapshot for reliability.
-        civic_locator = self.page.locator("input[data-test='input'][name='civicNumber']")
-        civic_locator.wait_for(state="visible")
-        civic_locator.fill(query.civic_number)
+        Args:
+            email: User email/username
+            password: User password
+
+        Returns:
+            True if login successful, False otherwise
+        """
+        logger.info("Attempting login")
+
+        try:
+            # Navigate to homepage
+            self.page.goto("https://montreal.ca/", wait_until="load", timeout=TIMEOUTS["page_load"])
+
+            # Click login button with fallbacks
+            if not click_element_with_fallbacks(
+                self.page,
+                SELECTORS["login"]["login_button"],
+                timeout=TIMEOUTS["element_visible"],
+            ):
+                logger.error("Failed to click login button")
+                return False
+
+            # Wait for login form to appear
+            self.page.wait_for_timeout(1000)
+
+            # Fill email field
+            if not fill_element_with_fallbacks(
+                self.page,
+                SELECTORS["login"]["email_input"],
+                email,
+                timeout=TIMEOUTS["element_visible"],
+            ):
+                logger.error("Failed to fill email field")
+                return False
+
+            # Fill password field
+            if not fill_element_with_fallbacks(
+                self.page,
+                SELECTORS["login"]["password_input"],
+                password,
+                timeout=TIMEOUTS["element_visible"],
+            ):
+                logger.error("Failed to fill password field")
+                return False
+
+            # Click submit button
+            if not click_element_with_fallbacks(
+                self.page,
+                SELECTORS["login"]["submit_button"],
+                timeout=TIMEOUTS["element_visible"],
+            ):
+                logger.error("Failed to click submit button")
+                return False
+
+            # Wait for navigation after login
+            try:
+                self.page.wait_for_load_state("networkidle", timeout=TIMEOUTS["long"])
+            except PlaywrightTimeoutError:
+                logger.warning("Network idle timeout after login, continuing anyway")
+
+            logger.info("Login flow completed successfully")
+            return True
+
+        except Exception as e:
+            logger.error(f"Login failed with error: {type(e).__name__}: {e}")
+            try:
+                screenshot_path = f"screenshots/login_failed_{dt.datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+                self.page.screenshot(path=screenshot_path)
+                logger.error(f"Login failure screenshot saved: {screenshot_path}")
+            except Exception:
+                pass
+            return False
+
+    def _fill_form(self, query: AddressQuery) -> bool:
+        """
+        Fill the address search form with robust error handling.
+
+        Args:
+            query: Address query to fill
+
+        Returns:
+            True if form filled successfully, False otherwise
+        """
+        logger.info(f"Filling form for: {query.civic_number} {query.street_name}")
+
+        # Fill civic number field
+        if not fill_element_with_fallbacks(
+            self.page,
+            SELECTORS["search_form"]["civic_number"],
+            query.civic_number,
+            timeout=TIMEOUTS["element_visible"],
+        ):
+            logger.error("Failed to fill civic number field")
+            return False
+
+        # Get street suggestion from API
+        suggestion = {}
         try:
             self.sleep()
             suggestion = self._best_street_suggestion(query)
-        except Exception:
-            suggestion = {}
+            logger.debug(f"Got street suggestion: {suggestion.get('displayName', 'None')}")
+        except Exception as e:
+            logger.warning(f"Failed to get street suggestion: {type(e).__name__}: {e}")
         finally:
             self.sleep()
+
+        # Determine street value to use
         street_value = suggestion.get("displayName") or suggestion.get("fullStreetName")
+
         if street_value:
-            street_locator = self.page.locator(
-                "div[data-test='combobox'] input[data-test='input'][name='streetNameCombobox']"
-            )
-            street_locator.wait_for(state="visible")
-            street_locator.fill(street_value)
-            self.page.evaluate(
-                "(suggestion) => {"
-                "document.querySelector(\"input[name='streetGeneric']\").value = suggestion.streetGeneric || '';"
-                "document.querySelector(\"input[name='streetName']\").value = suggestion.streetName || '';"
-                "document.querySelector(\"input[name='noCity']\").value = suggestion.noCity || '';"
-                "document.querySelector(\"input[name='boroughNumber']\").value = suggestion.boroughNumber || '';"
-                "document.querySelector(\"input[name='streetNameOfficial']\").value = suggestion.streetNameOfficial || '';"
-                "}",
-                suggestion,
-            )
+            # Fill street name combobox with suggestion
+            if not fill_element_with_fallbacks(
+                self.page,
+                SELECTORS["search_form"]["street_name_combobox"],
+                street_value,
+                timeout=TIMEOUTS["element_visible"],
+            ):
+                logger.error("Failed to fill street name field")
+                return False
+
+            # Fill hidden fields using Playwright native methods instead of unsafe eval
+            hidden_fields = [
+                ("street_generic", suggestion.get("streetGeneric", "")),
+                ("street_name", suggestion.get("streetName", "")),
+                ("no_city", suggestion.get("noCity", "")),
+                ("borough_number", suggestion.get("boroughNumber", "")),
+                ("street_name_official", suggestion.get("streetNameOfficial", "")),
+            ]
+
+            for field_key, field_value in hidden_fields:
+                if field_value:  # Only fill if we have a value
+                    try:
+                        locator = find_element_with_fallbacks(
+                            self.page,
+                            SELECTORS["search_form"][field_key],
+                            state="attached",  # Hidden fields may not be visible
+                            timeout=TIMEOUTS["short"],
+                            screenshot_on_failure=False,
+                        )
+                        # Use JavaScript to set value for hidden fields
+                        # This is safer than direct eval as it's limited to specific elements
+                        locator.evaluate(f"element => element.value = '{field_value}'")
+                        logger.debug(f"Set {field_key} to: {field_value}")
+                    except ElementNotFoundError:
+                        logger.debug(f"Hidden field {field_key} not found (may not be required)")
+                    except Exception as e:
+                        logger.warning(f"Failed to set {field_key}: {type(e).__name__}: {e}")
         else:
-            street_locator = self.page.locator(
-                "div[data-test='combobox'] input[data-test='input'][name='streetNameCombobox']"
-            )
-            street_locator.wait_for(state="visible")
-            street_locator.fill(query.street_name)
-        submit_locator = self.page.locator("button[data-test='submit'][form]")
-        submit_locator.wait_for(state="attached")
-        submit_locator.click()
-        self.page.wait_for_load_state("networkidle")
+            # No suggestion available, use raw street name
+            logger.info("No street suggestion available, using raw street name")
+            if not fill_element_with_fallbacks(
+                self.page,
+                SELECTORS["search_form"]["street_name_combobox"],
+                query.street_name,
+                timeout=TIMEOUTS["element_visible"],
+            ):
+                logger.error("Failed to fill street name field")
+                return False
+
+        # Submit the form
+        if not click_element_with_fallbacks(
+            self.page,
+            SELECTORS["search_form"]["submit_button"],
+            timeout=TIMEOUTS["element_visible"],
+        ):
+            logger.error("Failed to click submit button")
+            return False
+
+        # Wait for page to load
+        try:
+            self.page.wait_for_load_state("networkidle", timeout=TIMEOUTS["long"])
+        except PlaywrightTimeoutError:
+            logger.warning("Network idle timeout after form submission, continuing anyway")
+
+        logger.info("Form filled and submitted successfully")
+        return True
 
     def _select_address(self, query: AddressQuery):
+        """
+        Select the matching address from the results list.
+
+        Args:
+            query: Address query to match
+
+        Returns:
+            Tuple of (status, result_data)
+        """
         if self._on_login_page():
             return "auth_required", {}
+
+        # Wait for results page to load
         try:
-            self.page.wait_for_url(re.compile(r"/role-evaluation-fonciere/adresse/liste"), timeout=10_000)
-        except TimeoutError:
+            self.page.wait_for_url(
+                re.compile(URL_PATTERNS["search_page"]),
+                timeout=TIMEOUTS["medium"]
+            )
+        except PlaywrightTimeoutError:
+            logger.error("Timeout waiting for search results page")
             return "not_found", {}
-        items = self.page.locator("ul[data-test='list-group'] li[data-test='item']")
-        count = items.count()
+
+        # Find list items
+        try:
+            items = find_element_with_fallbacks(
+                self.page,
+                SELECTORS["address_selection"]["list_items"],
+                state="attached",
+                timeout=TIMEOUTS["medium"],
+                screenshot_on_failure=False,
+            )
+        except ElementNotFoundError:
+            logger.info("No address results found")
+            return "not_found", {}
+
+        # Get count of items
+        items_locator = self.page.locator(SELECTORS["address_selection"]["list_items"][0])
+        count = items_locator.count()
+
         if count == 0:
+            logger.info("No address matches found")
             return "not_found", {}
+
+        logger.info(f"Found {count} address result(s)")
+
+        # Try to match the address
         normalized_target = _normalize_address(query)
         matched_index = None
+
         for idx in range(count):
-            dd_locator = items.nth(idx).locator("dl dd").first
             try:
-                address_text = dd_locator.inner_text(timeout=5_000)
-            except Exception:
+                # Get the address description text from this item
+                item_locator = items_locator.nth(idx)
+                dd_locator = item_locator.locator(SELECTORS["address_selection"]["address_description"][0]).first
+
+                address_text = dd_locator.inner_text(timeout=TIMEOUTS["short"])
+                normalized_item = _normalize(address_text)
+
+                logger.debug(f"Comparing item {idx + 1}: '{address_text}' -> '{normalized_item}'")
+
+                if normalized_item == normalized_target:
+                    matched_index = idx
+                    logger.info(f"Found exact match at index {idx}: {address_text}")
+                    break
+
+            except PlaywrightTimeoutError:
+                logger.warning(f"Timeout getting text for item {idx}")
                 continue
-            normalized_item = _normalize(address_text)
-            if normalized_item == normalized_target:
-                matched_index = idx
-                break
+            except Exception as e:
+                logger.warning(f"Error processing item {idx}: {type(e).__name__}: {e}")
+                continue
+
+        # If no exact match and multiple results, return error
         if matched_index is None:
             if count > 1:
+                logger.warning(f"Multiple addresses found but no exact match for: {query.raw_address}")
                 return "multiple_matches", {}
+            # If only one result, use it
             matched_index = 0
-        items.nth(matched_index).locator("form button[data-test='button']").click()
+            logger.info("Only one result, using it even without exact match")
+
+        # Click the select button for the matched item
         try:
-            self.page.wait_for_url(re.compile(r"/role-evaluation-fonciere/adresse/liste/resultat"), timeout=10_000)
-        except TimeoutError:
+            item_locator = items_locator.nth(matched_index)
+            select_button = item_locator.locator(SELECTORS["address_selection"]["select_button"][0])
+            select_button.click(timeout=TIMEOUTS["element_visible"])
+            logger.info(f"Clicked select button for item {matched_index}")
+        except Exception as e:
+            logger.error(f"Failed to click select button: {type(e).__name__}: {e}")
+            return "error:click_failed", {}
+
+        # Wait for results page
+        try:
+            self.page.wait_for_url(
+                re.compile(URL_PATTERNS["results_page"]),
+                timeout=TIMEOUTS["medium"]
+            )
+        except PlaywrightTimeoutError:
+            logger.error("Timeout waiting for results page after selection")
             return "error:timeout", {}
+
+        # Check if redirected to login
         if self._on_login_page():
+            logger.warning("Redirected to login page after address selection")
             return "auth_required", {}
-        self.page.wait_for_load_state("networkidle")
+
+        # Wait for page to stabilize
+        try:
+            self.page.wait_for_load_state("networkidle", timeout=TIMEOUTS["long"])
+        except PlaywrightTimeoutError:
+            logger.warning("Network idle timeout on results page, continuing anyway")
+
+        logger.info("Address selection completed successfully")
         return "ok", {}
 
     def _parse_final_page(self) -> Dict[str, str]:
@@ -280,34 +554,83 @@ class MontrealRoleScraper:
         return suggestions[0]
 
     def _on_login_page(self) -> bool:
+        """
+        Check if currently on a login page.
+
+        Returns:
+            True if on login page, False otherwise
+        """
+        # Check URL for login patterns
         try:
-            current_url = self.page.url
-        except Exception:
-            current_url = ""
-        if current_url and ("login" in current_url or "compte" in current_url):
-            return True
+            current_url = self.page.url.lower()
+            for pattern in URL_PATTERNS["login_patterns"]:
+                if pattern in current_url:
+                    logger.debug(f"Login page detected via URL pattern: {pattern}")
+                    return True
+        except Exception as e:
+            logger.debug(f"Failed to get current URL: {type(e).__name__}: {e}")
+
+        # Check for login form elements
         try:
-            locator = self.page.locator("input#signInName")
-            return locator.count() > 0
-        except Exception:
-            return False
+            # Check if any of the login email input selectors are present
+            for selector in SELECTORS["login"]["email_input"]:
+                try:
+                    count = self.page.locator(selector).count()
+                    if count > 0:
+                        logger.debug(f"Login page detected via selector: {selector}")
+                        return True
+                except Exception:
+                    continue
+        except Exception as e:
+            logger.debug(f"Failed to check for login elements: {type(e).__name__}: {e}")
+
+        return False
 
     def _ensure_authenticated(self) -> bool:
+        """
+        Ensure user is authenticated, attempting auto-login if needed.
+
+        Returns:
+            True if authenticated, False otherwise
+        """
         if self._auto_login_attempted:
             logger.error("Authentication wall encountered after previous login attempt")
             return False
+
         if not self.login_email or not self.login_password:
             logger.error("Authentication required but credentials are unavailable")
             return False
+
         self._auto_login_attempted = True
         logger.info("Automatically signing in with configured credentials")
-        self.login(self.login_email, self.login_password)
+
+        # Attempt login
+        if not self.login(self.login_email, self.login_password):
+            logger.error("Auto-login failed")
+            return False
+
+        # Wait for page to stabilize
         try:
-            self.page.wait_for_load_state("networkidle")
-        except TimeoutError:
-            pass
-        self.page.goto(BASE_URL, wait_until="load")
-        return not self._on_login_page()
+            self.page.wait_for_load_state("networkidle", timeout=TIMEOUTS["long"])
+        except PlaywrightTimeoutError:
+            logger.warning("Network idle timeout after login")
+
+        # Navigate back to base URL
+        try:
+            self.page.goto(BASE_URL, wait_until="load", timeout=TIMEOUTS["page_load"])
+        except PlaywrightTimeoutError:
+            logger.error("Timeout navigating to base URL after login")
+            return False
+
+        # Verify we're not on login page
+        is_authenticated = not self._on_login_page()
+
+        if is_authenticated:
+            logger.info("Auto-login successful")
+        else:
+            logger.error("Auto-login failed - still on login page")
+
+        return is_authenticated
 
 
 def _normalize_address(query: AddressQuery) -> str:
