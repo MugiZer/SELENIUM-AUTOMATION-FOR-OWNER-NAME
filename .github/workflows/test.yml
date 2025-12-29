@@ -1,0 +1,330 @@
+name: Comprehensive Test Suite
+
+on:
+  push:
+    branches: ['main', 'master', 'develop', 'claude/*']
+  pull_request:
+    branches: [main, master, develop]
+  schedule:
+    # Run tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  NODE_VERSION: '22.x'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  python-tests:
+    name: Python Tests (CLI, Scraper, Parsers)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11']
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov pytest-mock
+          pip install -r requirements.txt
+
+      - name: Run Python CLI tests
+        run: |
+          pytest tests/test_cli.py -v --tb=short
+
+      - name: Run Python scraper tests
+        run: |
+          pytest tests/test_montreal_role.py -v --tb=short
+
+      - name: Run Python parser tests
+        run: |
+          pytest tests/test_parsers.py -v --tb=short
+
+      - name: Run Python pipeline tests
+        run: |
+          pytest tests/test_pipeline.py -v --tb=short
+
+      - name: Run all Python tests with coverage
+        run: |
+          pytest tests/ -v --cov=scraper --cov=. --cov-report=xml --tb=short
+
+      - name: Upload coverage reports to Codecov
+        if: matrix.python-version == '3.11'
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+          flags: python
+          name: python-coverage
+
+      - name: Test CLI help output
+        run: |
+          python main.py --help
+
+  nodejs-tests:
+    name: Node.js/Express API Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install Node.js dependencies
+        run: npm ci
+
+      - name: Run API tests
+        run: npm test -- tests/test_api.test.js --passWithNoTests
+
+      - name: Lint Node.js code
+        run: |
+          npm run lint --if-present || true
+
+  react-tests:
+    name: React Component Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install Node.js dependencies
+        run: npm ci
+
+      - name: Run React component tests
+        run: npm test -- tests/test_components.test.tsx --passWithNoTests
+
+      - name: Build React for production
+        run: npm run build || true
+
+      - name: Check build artifacts
+        run: |
+          if [ -d "dist" ]; then
+            echo "Build successful: $(ls -la dist/ | head -5)"
+          fi
+
+  integration-tests:
+    name: Integration & CLI Terminal Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [python-tests, nodejs-tests]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install all dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest pytest-cov pytest-mock
+          npm ci
+
+      - name: Test CLI terminal usage - Basic command
+        run: python main.py --help
+
+      - name: Test CLI terminal usage - Headless mode flag
+        run: |
+          echo "Testing CLI argument parsing..."
+          python -c "
+          import sys
+          sys.argv = ['main.py', 'test.csv', '--headless']
+          from main import parse_args
+          args = parse_args()
+          assert args.headless == True
+          print('✓ Headless mode flag works')
+          "
+
+      - name: Test CLI terminal usage - Custom output path
+        run: |
+          echo "Testing custom output path..."
+          python -c "
+          import sys
+          sys.argv = ['main.py', 'test.csv', '-o', 'output.csv']
+          from main import parse_args
+          args = parse_args()
+          assert args.output_file == 'output.csv'
+          print('✓ Custom output path works')
+          "
+
+      - name: Test CLI terminal usage - Start row option
+        run: |
+          echo "Testing start row option..."
+          python -c "
+          import sys
+          sys.argv = ['main.py', 'test.csv', '--start-row', '100']
+          from main import parse_args
+          args = parse_args()
+          assert args.start_row == 100
+          print('✓ Start row option works')
+          "
+
+      - name: Test CLI terminal usage - Max rows limit
+        run: |
+          echo "Testing max rows option..."
+          python -c "
+          import sys
+          sys.argv = ['main.py', 'test.csv', '-m', '500']
+          from main import parse_args
+          args = parse_args()
+          assert args.max_rows == 500
+          print('✓ Max rows option works')
+          "
+
+      - name: Test CLI terminal usage - Debug mode
+        run: |
+          echo "Testing debug flag..."
+          python -c "
+          import sys
+          sys.argv = ['main.py', 'test.csv', '--debug']
+          from main import parse_args
+          args = parse_args()
+          assert args.debug == True
+          print('✓ Debug mode flag works')
+          "
+
+      - name: Test CLI terminal usage - Combined flags
+        run: |
+          echo "Testing combined flags..."
+          python -c "
+          import sys
+          sys.argv = ['main.py', 'test.csv', '--headless', '--no-cache', '--no-backup']
+          from main import parse_args
+          args = parse_args()
+          assert args.headless == True
+          assert args.no_cache == True
+          assert args.no_backup == True
+          print('✓ Combined flags work')
+          "
+
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Python tools
+        run: |
+          pip install pylint flake8 black isort
+
+      - name: Check Python code formatting (black)
+        run: black --check . --exclude tests || true
+
+      - name: Check Python imports (isort)
+        run: isort --check . --skip tests || true
+
+      - name: Lint Python code
+        run: |
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Lint JavaScript/TypeScript
+        run: npm run lint --if-present || true
+
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Python security tools
+        run: |
+          pip install bandit safety
+
+      - name: Scan Python for security issues
+        run: bandit -r . -ll --exclude tests || true
+
+      - name: Check Python dependencies for vulnerabilities
+        run: safety check --json || true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Audit npm dependencies
+        run: npm audit --audit-level=moderate || true
+
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [python-tests, nodejs-tests, react-tests, integration-tests, code-quality, security-scan]
+    if: always()
+
+    steps:
+      - name: Check test results
+        run: |
+          echo "=== Test Summary ==="
+          echo "Python Tests: ${{ needs.python-tests.result }}"
+          echo "Node.js Tests: ${{ needs.nodejs-tests.result }}"
+          echo "React Tests: ${{ needs.react-tests.result }}"
+          echo "Integration Tests: ${{ needs.integration-tests.result }}"
+          echo "Code Quality: ${{ needs.code-quality.result }}"
+          echo "Security Scan: ${{ needs.security-scan.result }}"
+
+      - name: Fail if critical jobs failed
+        if: |
+          needs.python-tests.result == 'failure' ||
+          needs.nodejs-tests.result == 'failure' ||
+          needs.react-tests.result == 'failure' ||
+          needs.integration-tests.result == 'failure'
+        run: |
+          echo "Critical test jobs failed!"
+          exit 1

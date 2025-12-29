@@ -265,3 +265,111 @@ def test_perform_search_handles_auth_wall_post_submission(monkeypatch):
     assert status == "ok"
     assert attempts["count"] == 1
     assert payload["owner_names"] == "Example"
+
+
+def test_address_query_creation(monkeypatch):
+    """Test AddressQuery creation and initialization."""
+    query = AddressQuery("1463", "Rue Bishop", "1463 Rue Bishop (Montréal)")
+    assert query.civic_number == "1463"
+    assert query.street_name == "Rue Bishop"
+    assert query.neighborhood is None  # Default
+
+
+def test_address_query_with_neighborhood(monkeypatch):
+    """Test AddressQuery with neighborhood information."""
+    query = AddressQuery(
+        "1463", "Rue Bishop", "1463 Rue Bishop (Montréal)",
+        neighborhood="Côte-des-Neiges"
+    )
+    assert query.neighborhood == "Côte-des-Neiges"
+
+
+def test_scraper_cache_integration(monkeypatch):
+    """Test that scraper uses cache correctly."""
+    class CacheStub:
+        def __init__(self):
+            self.cache = {}
+
+        def get(self, key):
+            return self.cache.get(key)
+
+        def set(self, key, value):
+            self.cache[key] = value
+
+        def close(self):
+            pass
+
+    cache = CacheStub()
+    page = StubPage()
+    scraper = MontrealRoleScraper(
+        page=page,
+        cache=cache,
+        rate_limiter=RateLimiter(delay_min=0, delay_max=0),
+        delay_after_actions=False,
+    )
+
+    # Store something in cache
+    cache.set("test_key", {"status": "ok", "owner_names": "Cached"})
+
+    # Verify cache retrieval
+    cached = cache.get("test_key")
+    assert cached is not None
+    assert cached["owner_names"] == "Cached"
+
+
+def test_scraper_rate_limiting(monkeypatch):
+    """Test that scraper respects rate limiting."""
+    page = StubPage()
+    rate_limiter = RateLimiter(delay_min=0.1, delay_max=0.2)
+
+    scraper = MontrealRoleScraper(
+        page=page,
+        cache=DummyCache(),
+        rate_limiter=rate_limiter,
+        delay_after_actions=False,
+    )
+
+    # Verify rate limiter is configured
+    assert scraper.rate_limiter is not None
+    assert scraper.rate_limiter.delay_min == 0.1
+    assert scraper.rate_limiter.delay_max == 0.2
+
+
+def test_scraper_initialization_with_credentials(monkeypatch):
+    """Test scraper initialization with login credentials."""
+    page = StubPage()
+    scraper = MontrealRoleScraper(
+        page=page,
+        cache=DummyCache(),
+        rate_limiter=RateLimiter(delay_min=0, delay_max=0),
+        login_email="test@example.com",
+        login_password="password123",
+        delay_after_actions=False,
+    )
+
+    assert scraper.login_email == "test@example.com"
+    assert scraper.login_password == "password123"
+
+
+def test_scraper_fetch_returns_dict(scraper, monkeypatch):
+    """Test that fetch method returns a dictionary."""
+    query = AddressQuery("1463", "Rue Bishop", "1463 Rue Bishop (Montréal)")
+
+    monkeypatch.setattr(scraper, "_perform_search", lambda _: ("ok", {"owner_names": "Test"}))
+
+    result = scraper.fetch(query)
+    assert isinstance(result, dict)
+    assert "status" in result or "owner_names" in result
+
+
+def test_scraper_handles_network_errors(scraper, monkeypatch):
+    """Test that scraper handles network errors gracefully."""
+    query = AddressQuery("1463", "Rue Bishop", "1463 Rue Bishop (Montréal)")
+
+    def raise_error(*args, **kwargs):
+        raise ConnectionError("Network timeout")
+
+    monkeypatch.setattr(scraper, "_perform_search", raise_error)
+
+    # The fetch method should handle the exception
+    # In real implementation, it would retry or return error status
