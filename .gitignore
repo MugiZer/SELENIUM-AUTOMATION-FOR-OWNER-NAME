@@ -120,6 +120,11 @@ venv/
 .venv/
 env/
 .env/
+.python-version
+
+# uv
+.uv/
+uv.lock
 
 # Scraper generated files
 output/

@@ -2,6 +2,31 @@
 
 This project automates the Montréal Rôle d'évaluation foncière workflow for CSV files. It enriches rows with owner and assessment data while respecting ToS-friendly scraping practices (rate limiting, retries, and stealth browser behaviors).
 
+## 🚀 Quick Start (No Python Installation Required!)
+
+We use [uv](https://github.com/astral-sh/uv) for automatic environment setup. Just run:
+
+**Windows:**
+```bash
+setup.bat
+```
+
+**macOS/Linux:**
+```bash
+bash setup.sh
+```
+
+Then run the automation:
+```bash
+# Windows
+run.bat "your-file.csv" --headless
+
+# macOS/Linux
+bash run.sh "your-file.csv" --headless
+```
+
+**👉 See [SETUP.md](SETUP.md) for detailed setup and usage instructions.**
+
 ## Features
 
 - Playwright (Chromium) automation with basic stealth evasion
@@ -14,6 +39,12 @@ This project automates the Montréal Rôle d'évaluation foncière workflow for 
 
 ## Requirements
 
+### Automated Setup (Recommended)
+**No manual installation needed!** Use the setup scripts above.
+
+### Manual Setup
+If you prefer manual installation:
+
 - Python 3.11
 - Playwright dependencies (Chromium browser binaries)
 
@@ -21,7 +52,7 @@ Install Python dependencies:
 
 ```bash
 pip install -r requirements.txt
-playwright install
+playwright install chromium
 ```
 
 ## Environment Variables
@@ -44,10 +75,10 @@ Copy `.env.example` to `.env` and fill in the values:
 
 ```bash
 # Process a CSV file with default settings
-python main.py --input input/properties.csv
+python main.py "input/properties.csv" --headless
 
 # Process with custom delay between requests
-python main.py --input input/properties.csv --delay-min 1.5 --delay-max 3.0
+python main.py "input/properties.csv" --delay-min 1.5 --delay-max 3.0 --headless
 
 # Process in headful mode (shows browser)
 python main.py --input input/properties.csv --headful

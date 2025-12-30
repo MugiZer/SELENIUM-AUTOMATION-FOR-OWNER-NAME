@@ -1,0 +1,43 @@
+[project]
+name = "montreal-role-scraper"
+version = "1.0.0"
+description = "Automated scraper for Montreal property assessment data"
+authors = [
+    {name = "Montreal Role Scraper Team"}
+]
+requires-python = ">=3.11"
+dependencies = [
+    "playwright>=1.40.0",
+    "pandas>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "tenacity>=8.2.3",
+    "rich>=13.4.2",
+    "selectolax>=0.3.12",
+    "pytest>=7.0.0",
+    "tqdm>=4.65.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
