@@ -262,9 +262,9 @@ def process_csv(
             
             if query:
                 # Check for borough column if present
-                if query.borough is None and BOROUGH_COLUMN in row_dict and row_dict[BOROUGH_COLUMN]:
-                    query.borough = str(row_dict[BOROUGH_COLUMN]).strip()
-                    logger.debug(f"Using borough from CSV: {query.borough}")
+                if query.neighborhood is None and BOROUGH_COLUMN in row_dict and row_dict[BOROUGH_COLUMN]:
+                    query.neighborhood = str(row_dict[BOROUGH_COLUMN]).strip()
+                    logger.debug(f"Using neighborhood from CSV: {query.neighborhood}")
                 
                 # Fetch property data
                 try:

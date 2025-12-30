@@ -665,8 +665,19 @@ def _candidate_next_data_urls(next_data: Dict[str, Any]) -> List[str]:
 
 
 def parse_input_row(row: Dict[str, str]) -> Optional[AddressQuery]:
-    civic_number = clean_number(row.get("civicNumber") or row.get("civic_number"))
-    street_name = (row.get("streetName") or row.get("street_name") or "").strip()
+    civic_number = clean_number(
+        row.get("civicNumber") or
+        row.get("civic_number") or
+        row.get("CIVIQUE_DEBUT") or
+        row.get("civique_debut")
+    )
+    street_name = (
+        row.get("streetName") or
+        row.get("street_name") or
+        row.get("NOM_RUE") or
+        row.get("nom_rue") or
+        ""
+    ).strip()
     raw_address = row.get("address") or row.get("Adresse") or ""
     
     # Extract neighborhood from various possible column names

@@ -120,3 +120,8 @@ venv/
 .venv/
 env/
 .env/
+
+# Scraper generated files
+output/
+backups/*.csv
+cache/

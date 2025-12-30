@@ -84,4 +84,4 @@ REQUIRED_INPUT_COLUMNS = ['civic_number', 'street_name', 'postal_code']
 OPTIONAL_INPUT_COLUMNS = ['borough', 'notes']
 
 # Borough column name for address matching
-BOROUGH_COLUMN = 'borough'
+BOROUGH_COLUMN = 'NO_ARROND_ILE_CUM'
