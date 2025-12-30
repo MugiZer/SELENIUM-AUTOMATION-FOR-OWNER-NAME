@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import json
+import os
 import random
 from pathlib import Path
 from typing import Iterator, Optional
@@ -20,9 +21,30 @@ USER_AGENTS = [
 @contextlib.contextmanager
 def launch_browser(headless: bool = True) -> Iterator[tuple[Playwright, Browser, BrowserContext]]:
     playwright = sync_playwright().start()
-    browser = playwright.chromium.launch(headless=headless)
+    browser = playwright.chromium.launch(
+        headless=headless,
+        args=[
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-web-security',
+            '--disable-features=IsolateOrigins,site-per-process'
+        ]
+    )
     user_agent = random.choice(USER_AGENTS)
-    context = browser.new_context(user_agent=user_agent, viewport={"width": 1280, "height": 720})
+
+    # Configure proxy from environment if available
+    proxy_config = None
+    https_proxy = os.environ.get('HTTPS_PROXY') or os.environ.get('https_proxy')
+    if https_proxy:
+        proxy_config = {"server": https_proxy}
+
+    context = browser.new_context(
+        user_agent=user_agent,
+        viewport={"width": 1280, "height": 720},
+        ignore_https_errors=True,
+        proxy=proxy_config
+    )
     add_stealth(context)
     try:
         yield playwright, browser, context
