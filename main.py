@@ -81,9 +81,9 @@ def parse_args() -> argparse.Namespace:
     
     # Browser options
     parser.add_argument(
-        "--headless",
+        "--no-headless",
         action="store_true",
-        help="Run browser in headless mode"
+        help="Run browser with visible window (default is headless)"
     )
     
     # Debugging options
@@ -145,7 +145,7 @@ def main() -> None:
     
     try:
         # Initialize browser and scraper
-        with launch_browser(headless=args.headless) as (playwright, browser, context):
+        with launch_browser(headless=not args.no_headless) as (playwright, browser, context):
             page = new_page(context)
             
             # Initialize scraper

@@ -1,0 +1,28 @@
+[project]
+name = "selenium-automation-for-owner-name"
+version = "1.0.0"
+description = "Montreal Property Assessment Data Scraper - Automates data extraction from Montreal city website"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "playwright>=1.40.0",
+    "pandas>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "tenacity>=8.2.3",
+    "rich>=13.4.2",
+    "selectolax>=0.3.12",
+    "tqdm>=4.65.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+]
+
+[project.scripts]
+scraper = "main:main"
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.0.0",
+]
