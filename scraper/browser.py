@@ -18,32 +18,55 @@ USER_AGENTS = [
 ]
 
 
+def _get_proxy_config() -> Optional[dict]:
+    """Parse proxy from environment variables."""
+    https_proxy = os.environ.get('HTTPS_PROXY') or os.environ.get('https_proxy')
+    if not https_proxy:
+        return None
+
+    from urllib.parse import urlparse
+    parsed = urlparse(https_proxy)
+    if parsed.username:
+        return {
+            "server": f"{parsed.scheme}://{parsed.hostname}:{parsed.port}",
+            "username": parsed.username,
+            "password": parsed.password or "",
+        }
+    return {"server": https_proxy}
+
+
 @contextlib.contextmanager
 def launch_browser(headless: bool = True) -> Iterator[tuple[Playwright, Browser, BrowserContext]]:
     playwright = sync_playwright().start()
+
+    # Get proxy configuration
+    proxy_config = _get_proxy_config()
+
+    # Build browser args
+    browser_args = [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-web-security',
+        '--disable-features=IsolateOrigins,site-per-process'
+    ]
+
+    # Add proxy args for Chromium if proxy is configured
+    if proxy_config:
+        browser_args.append(f'--proxy-server={proxy_config["server"]}')
+
     browser = playwright.chromium.launch(
         headless=headless,
-        args=[
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-web-security',
-            '--disable-features=IsolateOrigins,site-per-process'
-        ]
+        args=browser_args,
+        proxy=proxy_config  # Also pass to launch for proper auth handling
     )
     user_agent = random.choice(USER_AGENTS)
-
-    # Configure proxy from environment if available
-    proxy_config = None
-    https_proxy = os.environ.get('HTTPS_PROXY') or os.environ.get('https_proxy')
-    if https_proxy:
-        proxy_config = {"server": https_proxy}
 
     context = browser.new_context(
         user_agent=user_agent,
         viewport={"width": 1280, "height": 720},
         ignore_https_errors=True,
-        proxy=proxy_config
+        proxy=proxy_config  # Context-level proxy for proper routing
     )
     add_stealth(context)
     try:

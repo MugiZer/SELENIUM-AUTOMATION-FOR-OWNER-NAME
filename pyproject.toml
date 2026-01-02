@@ -12,6 +12,7 @@ dependencies = [
     "rich>=13.4.2",
     "selectolax>=0.3.12",
     "tqdm>=4.65.0",
+    "httpx>=0.28.1",
 ]
 
 [project.optional-dependencies]
